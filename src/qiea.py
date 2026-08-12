@@ -45,7 +45,7 @@ class QIEA:
         n_partitions=None,
         neighborhood_size=10,
         theta_max=0.35,
-        theta_min=0.02,
+        theta_min=0.1,
         mutation_prob=0.05,
         diversity_window=10,
         diversity_stagnation_tol=1e-3,

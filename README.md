@@ -142,16 +142,23 @@ Writes `results/<instance_name>_indicators.csv` (hypervolume/spacing/spread per 
 ## Status
 
 Pilot-scale results only (`--n-gen 60-80 --n-runs 3-5`) — not the paper's final numbers.
-Across every instance tried so far, QIEA is roughly on par with NSGA-II/SPEA2 but behind
-MOEA/D and RVEA on hypervolume, with Friedman tests confirming the differences are
-statistically significant. The algorithm produces valid, non-degenerate, well-spread fronts;
-it simply hasn't been tuned yet.
+A first hyperparameter tuning pass (2026-08-12, see `paper1.txt` section 8) raised
+`theta_min` from 0.02 to 0.1 in `qiea.py` after a population-fairness check and a
+factorial re-verification. This measurably helps on the smallest instance (A-n32-k5:
+QIEA now beats NSGA-II/SPEA2, still behind MOEA/D/RVEA) but does **not** generalize to
+the larger instances tested (E-n101-k8, route2_199: QIEA remains weakest of the five).
+Friedman tests confirm the cross-algorithm differences are statistically significant on
+every instance. The algorithm produces valid, non-degenerate, well-spread fronts; the
+open question is now scaling the tuning (or the algorithm itself) to larger instances,
+not "it hasn't been tuned yet."
 
 **Not done yet:**
 
 - QAOA-MOO baseline (Kotil et al. 2025) — a real quantum-circuit baseline, not attempted.
 - The paper-scale statistical campaign (30 runs x 500-1000 generations, all 7 instances).
-- QIEA hyperparameter tuning (neighborhood size, mutation probability, rotation schedule).
+- QIEA hyperparameter tuning on larger instances (the 2026-08-12 pass only tuned against
+  A-n32-k5; neighborhood size and mutation probability still show no improvement there and
+  haven't been retested on bigger instances).
 - Confirming the Sibiu file-to-route mapping against original records.
 - PlatEMO/MATLAB cross-validation.
 

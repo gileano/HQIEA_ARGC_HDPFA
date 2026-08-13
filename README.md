@@ -152,14 +152,4 @@ every instance. The algorithm produces valid, non-degenerate, well-spread fronts
 open question is now scaling the tuning (or the algorithm itself) to larger instances,
 not "it hasn't been tuned yet."
 
-**Not done yet:**
-
-- QAOA-MOO baseline (Kotil et al. 2025) — a real quantum-circuit baseline, not attempted.
-- The paper-scale statistical campaign (30 runs x 500-1000 generations, all 7 instances).
-- QIEA hyperparameter tuning on larger instances (the 2026-08-12 pass only tuned against
-  A-n32-k5; neighborhood size and mutation probability still show no improvement there and
-  haven't been retested on bigger instances).
-- Confirming the Sibiu file-to-route mapping against original records.
-- PlatEMO/MATLAB cross-validation.
-
 See `paper1.txt` in the parent directory for the full project plan and implementation log.

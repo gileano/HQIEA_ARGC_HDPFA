@@ -47,6 +47,27 @@ theta_max drift 0.35->0.3547 there, which was enough noise to regress QIEA's ran
 against NSGA-II/SPEA2 in a 5-seed run_experiment.py comparison. Continuous decode
 (ZDT/DTLZ/WFG) keeps the old fixed defaults -- there is no argsort step, so this
 mechanism doesn't apply.
+
+Mutation rate scales with instance size (permutation decode only): quantum_mutation
+flips each gene independently with probability mutation_prob, so the expected number
+of mutated genes per individual is mutation_prob * n_var. A fixed absolute
+mutation_prob=0.05 is therefore ~1.5 expected flips on a 31-city tour but ~10 on a
+198-city tour -- the same "fixed absolute parameter, more disruptive as n_var grows"
+mechanism as the rotation-step finding above, and it turned out to be a much bigger
+effect: an OFAT screen on E-n101-k8/route2_199 found mutation_prob=0.01 alone worth
++49-70% hypervolume there (paired Wilcoxon, matched population, p<0.01), while the
+same value regresses A-n32-k5. mutation_prob therefore defaults to min(0.05, 1.55 /
+n_var) when not given explicitly -- clamped so it reduces EXACTLY to the old 0.05 at
+n_var<=31 (A-n32-k5), same clamping rationale as theta_min/theta_max: this
+representation was shown sensitive to even ~1% drift in a scale-family parameter at
+n_var=31. neighborhood_size was screened alongside mutation_prob and looked like it
+helped too, but an isolated confirm run showed that was an OFAT interaction artifact
+of the screen, not a real effect -- with mutation_prob fixed, a larger
+neighborhood_size gave 0% change on E-n101-k8 but +30% on route2_199, an
+instance-specific result with no clean size-based rule, so it is NOT included in any
+default here (would violate the population/hyperparameter-fairness rule that keeps
+QIEA comparable to the baselines -- see tune_qiea_matched.py). Continuous decode
+keeps the old fixed 0.05 -- no evidence this mechanism applies there either.
 """
 import numpy as np
 
@@ -64,6 +85,13 @@ class QIEA:
         gap = (np.pi / 2) / n_var
         return min(0.1, 2.0 * gap), min(0.35, 7.0 * gap)
 
+    @staticmethod
+    def _default_mutation_prob(decode, n_var):
+        """Gap-relative mutation-rate default for permutation decode; see module docstring."""
+        if decode != "permutation":
+            return 0.05
+        return min(0.05, 1.55 / n_var)
+
     def __init__(
         self,
         problem,
@@ -72,7 +100,7 @@ class QIEA:
         neighborhood_size=10,
         theta_max=None,
         theta_min=None,
-        mutation_prob=0.05,
+        mutation_prob=None,
         diversity_window=10,
         diversity_stagnation_tol=1e-3,
         seed=0,
@@ -101,7 +129,7 @@ class QIEA:
             theta_max = auto_max if theta_max is None else theta_max
         self.theta_max = theta_max
         self.theta_min = theta_min
-        self.mutation_prob = mutation_prob
+        self.mutation_prob = mutation_prob if mutation_prob is not None else self._default_mutation_prob(decode, self.n_var)
         self.diversity_window = diversity_window
         self.diversity_stagnation_tol = diversity_stagnation_tol
 

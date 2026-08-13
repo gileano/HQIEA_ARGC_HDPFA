@@ -25,6 +25,12 @@ vectors, Tchebycheff scalarization, neighborhood-restricted mating). The rotatio
 size decays over generations but is boosted when population diversity stalls, giving an
 adaptive explore/exploit schedule.
 
+For the permutation decode, both the rotation-step size and the mutation rate default to a
+function of instance size (`n_var`) rather than a fixed constant — a fixed absolute value
+tuned on a small instance becomes disproportionately disruptive to `argsort`-decoded tours as
+the instance grows, which was quietly capping QIEA's performance on larger CVRP instances (see
+`paper1.txt` sections 9-10).
+
 ## Problem formulation
 
 Decision variable: a giant-tour permutation of customers, decoded into vehicle routes by a
@@ -141,15 +147,33 @@ Writes `results/<instance_name>_indicators.csv` (hypervolume/spacing/spread per 
 
 ## Status
 
-Pilot-scale results only (`--n-gen 60-80 --n-runs 3-5`) — not the paper's final numbers.
-A first hyperparameter tuning pass (2026-08-12, see `paper1.txt` section 8) raised
-`theta_min` from 0.02 to 0.1 in `qiea.py` after a population-fairness check and a
-factorial re-verification. This measurably helps on the smallest instance (A-n32-k5:
-QIEA now beats NSGA-II/SPEA2, still behind MOEA/D/RVEA) but does **not** generalize to
-the larger instances tested (E-n101-k8, route2_199: QIEA remains weakest of the five).
+Pilot-scale results only (`--n-gen 60-80 --n-runs 3-10`) — not the paper's final numbers.
+Three tuning passes so far (2026-08-12/13, see `paper1.txt` sections 8-10), all under a
+strict population-fairness constraint (QIEA's population size, `n_partitions`, is kept
+identical to MOEA/D's and RVEA's in every comparison):
+
+- `theta_min`/`theta_max` (rotation-gate step size) made instance-size-aware — a fixed
+  absolute value tuned on the smallest instance (A-n32-k5, 32 nodes) was an increasingly
+  disruptive fraction of the `argsort` gap as instance size grew.
+- `mutation_prob` made instance-size-aware the same way — a fixed mutation rate flips a
+  growing *number* of genes as `n_var` grows, which was quietly crippling QIEA on the
+  larger instances tested.
+
+Verified with 10-seed reruns of the full 5-algorithm comparison (`run_experiment.py`,
+per-pair Wilcoxon):
+
+| Instance | Result |
+|---|---|
+| A-n32-k5 (32 nodes) | Unchanged: QIEA beats NSGA-II/SPEA2, still behind MOEA/D/RVEA |
+| E-n101-k8 (101 nodes) | QIEA is **no longer weakest of five** — statistically tied with NSGA-II (p=0.92) and SPEA2 (p=0.77); still significantly behind MOEA/D and RVEA (p=0.002 each) |
+| route2_199 (199 nodes) | QIEA now statistically **ties NSGA-II (p=0.43), SPEA2 (p=0.16), and MOEA/D (p=0.85)** — only RVEA remains significantly ahead (p=0.014) |
+
 Friedman tests confirm the cross-algorithm differences are statistically significant on
 every instance. The algorithm produces valid, non-degenerate, well-spread fronts; the
-open question is now scaling the tuning (or the algorithm itself) to larger instances,
-not "it hasn't been tuned yet."
+remaining gap is now specifically against decomposition/reference-vector-guided baselines
+(mainly RVEA, and MOEA/D on the 101-node instance) rather than a blanket "QIEA is weakest"
+finding. Open follow-ups: `neighborhood_size` tuning (a real, independent gain on
+route2_199 with no clean size-based rule found yet), and the diversity-stagnation-boost
+parameters — see `paper1.txt` section 10h.
 
 See `paper1.txt` in the parent directory for the full project plan and implementation log.

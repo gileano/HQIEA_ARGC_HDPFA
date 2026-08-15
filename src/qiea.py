@@ -45,12 +45,25 @@ is accidentally optimal, not a bug. A 15-seed confirm of the mildest deviation (
 individually significant there; the full-grid monotonic pattern replicating identically
 across three independent instances is the stronger evidence. Net effect: whatever this
 mechanism was intended to do, forcing it to trigger more is not a viable lever for closing
-QIEA's gap to RVEA/MOEA-D -- if anything it points at the escape's fixed 3x rotation /5x
-mutation boost being too disruptive whenever triggered, an open question for whether a much
-milder boost magnitude could still help (not tested here). diversity_stagnation_tol,
-diversity_window, and the boost multipliers (rotation_boost_multiplier=3.0,
-mutation_boost_multiplier=5.0, now exposed as constructor params) are therefore left at
-their existing defaults.
+QIEA's gap to RVEA/MOEA-D. diversity_stagnation_tol, diversity_window, and the boost
+multipliers (rotation_boost_multiplier=3.0, mutation_boost_multiplier=5.0, now exposed
+as constructor params) are therefore left at their existing defaults.
+
+Follow-up (tune_qiea_boost_magnitude.py/_confirm.py) tried to separate two
+explanations for the above -- (1) triggering the escape at all is harmful regardless
+of response size, vs (2) triggering is fine but the current 3x/5x response is simply
+too disruptive -- by fixing tol=0.003 (confirmed to reliably engage the mechanism) and
+sweeping the boost multipliers themselves from a no-op (1.0, 1.0) up to the default
+(3.0, 5.0). A first 5-seed screen suggested a clean answer (even the mildest tested
+boost, 1.1x/1.2x, underperformed the no-op on all three instances), but a 15-seed
+confirm of exactly that comparison did NOT hold up: only A-n32-k5 stayed significantly
+worse (-5.1%, p=0.015 -- consistent with this instance's known extreme sensitivity to
+any hyperparameter drift, see the theta_max clamping incident below), E-n101-k8 was a
+non-significant -1.1%, and route2_199's direction flipped to a non-significant +4.5%.
+So magnitude vs. frequency could not be cleanly separated -- the mild-boost-is-bad
+signal from the small-seed screen was itself mostly noise, the same lesson as the
+tol confirm's small-deviation case above. No default changed; this remains a genuinely
+open, instance-dependent question rather than a resolved one.
 
 Rotation step scales with instance size (permutation decode only): theta_max/theta_min
 used to be fixed absolute radians, tuned once on a 31-city instance. But the permutation

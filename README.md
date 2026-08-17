@@ -147,10 +147,48 @@ Writes `results/<instance_name>_indicators.csv` (hypervolume/spacing/spread per 
 
 ## Status
 
-Pilot-scale results only (`--n-gen 60-80 --n-runs 3-10`) — not the paper's final numbers.
-Three tuning passes so far (2026-08-12/13, see `paper1.txt` sections 8-10), all under a
-strict population-fairness constraint (QIEA's population size, `n_partitions`, is kept
-identical to MOEA/D's and RVEA's in every comparison):
+**Full-scale campaign now run (2026-08-17)** — `results/*_indicators.csv` and
+`*_fronts.npz` hold the paper's actual target-scale numbers (30 runs, `--n-gen 500`,
+`--pop-size 80`) on all 7 instances, not pilot-scale data. Result: **QIEA is the weakest
+of all five algorithms on every single instance** (hypervolume ratio to the best baseline
+ranges 0.17–0.45 across the 7 instances; Friedman p ≪ 0.05 on all 7). This contradicts an
+earlier pilot-scale finding (3–10 seeds, `--n-gen 80`) that mutation-rate scaling had made
+QIEA competitive on the two larger instances tested at the time — that result turned out
+to be an artifact of the short generation budget, not a real fix (see `paper1.txt`
+section 14).
+
+A follow-up diagnostic (`src/diag_qiea_generation_trace.py`, no tuning — just traces
+hypervolume every 10 generations) found the actual cause: **QIEA hits a hard hypervolume
+plateau early in the run and then never improves again**, while every baseline keeps
+climbing steadily all the way to generation 500.
+
+- A-n32-k5: QIEA is competitive through ~gen 30–60, then freezes bit-for-bit at gen 60
+  for the remaining 440 generations, while NSGA-II/SPEA2/RVEA climb another ~2.5–3x past
+  that point.
+- route2_199: same shape, plateau starts ~gen 440–450; final QIEA hypervolume is under
+  half of the next-worst baseline.
+
+This is a **structural issue, not a parameter-tuning gap** — the auto-scaled
+`theta_min`/`theta_max`/`mutation_prob` formulas from the earlier tuning passes (below)
+were already active during this trace. Root cause: QIEA's fixed-size population (one
+individual per MOEA/D subproblem) converges to its neighborhood guides, and the
+diversity-stagnation escape — "ARGC", the algorithm's namesake mechanism — essentially
+never fires under its current threshold (confirmed separately in `paper1.txt` section 12).
+With no escape actually engaging, there's no way to find new archive points once
+converged, so a longer generation budget helps every other algorithm but does nothing for
+QIEA past its freeze point.
+
+**Current top priority** (supersedes prior tuning-focused next steps): design and test a
+diversity-reinjection or plateau-gated restart mechanism, and confirm the plateau
+generalizes to the other 5 instances (only A-n32-k5 and route2_199 traced so far). See
+`paper1.txt` section 14g for the full open-questions list.
+
+<details>
+<summary>Earlier tuning passes (2026-08-12/13, superseded by the finding above)</summary>
+
+Three tuning passes (`paper1.txt` sections 8–10), all under a strict population-fairness
+constraint (QIEA's population size, `n_partitions`, kept identical to MOEA/D's and
+RVEA's in every comparison):
 
 - `theta_min`/`theta_max` (rotation-gate step size) made instance-size-aware — a fixed
   absolute value tuned on the smallest instance (A-n32-k5, 32 nodes) was an increasingly
@@ -159,21 +197,13 @@ identical to MOEA/D's and RVEA's in every comparison):
   growing *number* of genes as `n_var` grows, which was quietly crippling QIEA on the
   larger instances tested.
 
-Verified with 10-seed reruns of the full 5-algorithm comparison (`run_experiment.py`,
-per-pair Wilcoxon):
+These looked like real fixes in 10-seed pilot reruns at `--n-gen 80` (QIEA statistically
+tied with NSGA-II/SPEA2/MOEA-D on the two larger instances tested) — but the full-scale
+campaign above shows that result did not hold once run at the paper's actual generation
+budget. `neighborhood_size` and the diversity-stagnation-boost parameters were also
+investigated and left unchanged (real, reproducible effects too instance-specific or
+counterproductive to ship as defaults — see `paper1.txt` sections 11–13).
 
-| Instance | Result |
-|---|---|
-| A-n32-k5 (32 nodes) | Unchanged: QIEA beats NSGA-II/SPEA2, still behind MOEA/D/RVEA |
-| E-n101-k8 (101 nodes) | QIEA is **no longer weakest of five** — statistically tied with NSGA-II (p=0.92) and SPEA2 (p=0.77); still significantly behind MOEA/D and RVEA (p=0.002 each) |
-| route2_199 (199 nodes) | QIEA now statistically **ties NSGA-II (p=0.43), SPEA2 (p=0.16), and MOEA/D (p=0.85)** — only RVEA remains significantly ahead (p=0.014) |
-
-Friedman tests confirm the cross-algorithm differences are statistically significant on
-every instance. The algorithm produces valid, non-degenerate, well-spread fronts; the
-remaining gap is now specifically against decomposition/reference-vector-guided baselines
-(mainly RVEA, and MOEA/D on the 101-node instance) rather than a blanket "QIEA is weakest"
-finding. Open follow-ups: `neighborhood_size` tuning (a real, independent gain on
-route2_199 with no clean size-based rule found yet), and the diversity-stagnation-boost
-parameters — see `paper1.txt` section 10h.
+</details>
 
 See `paper1.txt` in the parent directory for the full project plan and implementation log.

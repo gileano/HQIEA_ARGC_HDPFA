@@ -119,6 +119,35 @@ largest n_var but wants the smallest neighborhood boost, the opposite of what an
 n_var-scaling formula would predict. The effect looks tied to per-instance Pareto
 front geometry, not any measurable size parameter, so neighborhood_size is left at
 its fixed default (10) rather than shipping an unjustified formula.
+
+Plateau-gated diversity reinjection (restart_patience/restart_fraction): a
+generation-trace diagnostic (diag_qiea_generation_trace.py, see paper1.txt section
+14) found QIEA hits a hard hypervolume plateau early in a 500-generation run and
+then NEVER improves again -- e.g. frozen bit-for-bit from generation 60 onward on
+A-n32-k5 -- while every pymoo baseline keeps climbing steadily to generation 500.
+Cause: the population is fixed at H individuals (one per MOEA/D subproblem); once
+every individual converges to its neighborhood's best guide, the diversity-
+stagnation escape above almost never fires (it was already shown near-dead in
+practice), so nothing reinjects novelty and the archive stops growing regardless
+of how many generations remain. Fix: track generations-since-the-archive-last-grew,
+and once that exceeds restart_patience, reseed a restart_fraction of the H
+subproblems to fresh random theta (elitist -- untouched individuals keep their
+converged state; see _do_restart). A two-stage grid screen (tune_qiea_restart.py,
+tune_qiea_restart_finegrid.py; patience in 5-200, fraction in 0.1-0.5, 5 seeds,
+A-n32-k5/E-n101-k8/route2_199) found EVERY tested config beat the restart-disabled
+control on every instance -- the opposite of the diversity_stagnation_tol result
+above, where triggering MORE was uniformly worse. The per-instance-optimal patience
+did not agree (10/5/15 respectively -- no clean size-based formula, same situation
+as neighborhood_size), so restart_patience=10/restart_fraction=0.5 was chosen as
+the single most robust candidate (top-3 by rank on every instance screened, never
+an outlier) rather than any per-instance value, for the same baseline-fairness
+reason as every other default in this file. Confirmed with 20 seeds across ALL
+SEVEN CVRP instances (tune_qiea_restart_confirm.py): +27.7% to +66.0% hypervolume,
+Wilcoxon p < 0.005 on every single instance -- by far the largest and most general
+effect found across this entire tuning investigation (sections 8-14 combined).
+Shipped as the new default (previously restart_patience=None, i.e. disabled).
+Continuous decode (ZDT/DTLZ/WFG) has not been checked for an analogous plateau --
+open, see paper1.txt section 15.
 """
 import numpy as np
 
@@ -156,6 +185,8 @@ class QIEA:
         diversity_stagnation_tol=1e-3,
         rotation_boost_multiplier=3.0,
         mutation_boost_multiplier=5.0,
+        restart_patience=10,
+        restart_fraction=0.5,
         seed=0,
     ):
         self.problem = problem
@@ -187,12 +218,17 @@ class QIEA:
         self.diversity_stagnation_tol = diversity_stagnation_tol
         self.rotation_boost_multiplier = rotation_boost_multiplier
         self.mutation_boost_multiplier = mutation_boost_multiplier
+        self.restart_patience = restart_patience
+        self.restart_fraction = restart_fraction
 
         self.theta = self.rng.uniform(0.0, np.pi / 2, size=(self.H, self.n_var))
         self.F = None
         self.z_ideal = np.full(self.n_obj, np.inf)
         self.history_diversity = []
         self.archive_X, self.archive_F = [], []
+        self._best_archive_size = 0
+        self._gens_since_growth = 0
+        self.n_restarts = 0
 
     # -- decode / evaluate --------------------------------------------------
     def decode(self, theta):
@@ -271,10 +307,34 @@ class QIEA:
 
             self.history_diversity.append(self.diversity())
             self._update_archive(self.theta, self.F)
+
+            if len(self.archive_F) > self._best_archive_size:
+                self._best_archive_size = len(self.archive_F)
+                self._gens_since_growth = 0
+            else:
+                self._gens_since_growth += 1
+            if self.restart_patience is not None and self._gens_since_growth >= self.restart_patience:
+                self._do_restart()
+                self._gens_since_growth = 0
+
             if verbose and gen % max(1, n_gen // 10) == 0:
                 print(f"gen {gen:4d}  step={step:.4f}  boosted={boosted}  |archive|={len(self.archive_F)}")
 
         return self._pareto_result()
+
+    def _do_restart(self):
+        """Plateau-gated diversity reinjection: reseed a fraction of subproblems to
+        fresh random theta when the archive has stopped growing for restart_patience
+        generations -- elitist (untouched individuals keep their converged state), see
+        paper1.txt section 14g/15 for the rationale (the fixed-tol diversity-stagnation
+        escape essentially never fires once truly converged, per section 12's finding)."""
+        k = max(1, int(round(self.restart_fraction * self.H)))
+        idx = self.rng.choice(self.H, size=k, replace=False)
+        self.theta[idx] = self.rng.uniform(0.0, np.pi / 2, size=(k, self.n_var))
+        _, F_new = self.evaluate_population(self.theta[idx])
+        self.F[idx] = F_new
+        self.z_ideal = np.minimum(self.z_ideal, F_new.min(axis=0))
+        self.n_restarts += 1
 
     def _update_archive(self, theta_pop, F):
         X = np.array([self.decode(t) for t in theta_pop])

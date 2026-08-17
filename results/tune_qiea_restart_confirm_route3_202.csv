@@ -1,0 +1,2 @@
+instance,hv_control_mean,hv_control_std,hv_candidate_mean,hv_candidate_std,pct_change,wilcoxon_stat,wilcoxon_p
+route3_202,4415845120.691923,1288633209.5183783,6200077518.26828,1386855430.371074,40.405230455564165,0.0,1.9073486328125e-06

@@ -1,0 +1,2 @@
+instance,hv_control_mean,hv_control_std,hv_candidate_mean,hv_candidate_std,pct_change,wilcoxon_stat,wilcoxon_p
+A-n32-k5,553693928760.2065,133175788795.45816,718196579344.1335,168873729138.6029,29.7100332944358,30.0,0.00365447998046875

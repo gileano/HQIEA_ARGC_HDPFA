@@ -147,41 +147,40 @@ Writes `results/<instance_name>_indicators.csv` (hypervolume/spacing/spread per 
 
 ## Status
 
-**Full-scale campaign now run (2026-08-17)** — `results/*_indicators.csv` and
-`*_fronts.npz` hold the paper's actual target-scale numbers (30 runs, `--n-gen 500`,
-`--pop-size 80`) on all 7 instances, not pilot-scale data. Result: **QIEA is the weakest
-of all five algorithms on every single instance** (hypervolume ratio to the best baseline
-ranges 0.17–0.45 across the 7 instances; Friedman p ≪ 0.05 on all 7). This contradicts an
-earlier pilot-scale finding (3–10 seeds, `--n-gen 80`) that mutation-rate scaling had made
-QIEA competitive on the two larger instances tested at the time — that result turned out
-to be an artifact of the short generation budget, not a real fix (see `paper1.txt`
-section 14).
+**Plateau fixed (2026-08-17)** — QIEA hit a hard hypervolume plateau early in every
+500-generation run (frozen bit-for-bit from generation ~60 onward on A-n32-k5, ~440-450
+on route2_199) while every baseline kept climbing steadily to generation 500 (found via
+`src/diag_qiea_generation_trace.py`; see `paper1.txt` section 14). Root cause: QIEA's
+fixed-size population (one individual per MOEA/D subproblem) converges to its
+neighborhood guides, and the diversity-stagnation escape — "ARGC", the algorithm's
+namesake mechanism — essentially never fires under its original threshold, so nothing
+reinjects novelty once converged.
 
-A follow-up diagnostic (`src/diag_qiea_generation_trace.py`, no tuning — just traces
-hypervolume every 10 generations) found the actual cause: **QIEA hits a hard hypervolume
-plateau early in the run and then never improves again**, while every baseline keeps
-climbing steadily all the way to generation 500.
+**Fix, now shipped as the default:** `QIEA` gained `restart_patience`/`restart_fraction`
+(default `10`/`0.5`) — once the archive has gone `restart_patience` generations without
+growing, a `restart_fraction` slice of the H subproblems is reseeded to fresh random
+theta (elitist — everything else keeps its converged state). A two-stage grid screen
+found *every* tested configuration beat the restart-disabled control on every instance
+screened, and a 20-seed confirmatory run validated the chosen default
+(`patience=10, fraction=0.5`) as significant on **all 7 CVRP instances** (+27.7% to
++66.0% hypervolume, Wilcoxon p < 0.005 everywhere) — the largest and most universally
+reproducible effect found across the whole tuning investigation (`paper1.txt`
+section 15).
 
-- A-n32-k5: QIEA is competitive through ~gen 30–60, then freezes bit-for-bit at gen 60
-  for the remaining 440 generations, while NSGA-II/SPEA2/RVEA climb another ~2.5–3x past
-  that point.
-- route2_199: same shape, plateau starts ~gen 440–450; final QIEA hypervolume is under
-  half of the next-worst baseline.
+**Where this leaves QIEA vs the baselines**, re-running the full 30-run/`--n-gen 500`
+campaign with the fix: QIEA's hypervolume ratio to the best baseline improved
+substantially on every instance (e.g. E-n101-k8 0.18→0.30, M-n200-k16 0.17→0.33,
+route2_199 0.37→0.58) but **QIEA still ranks last of five on every instance** — the fix
+closes roughly half the gap on average, not the gap itself. The one genuine ranking
+change: on route1_334, QIEA is now statistically **tied with NSGA-II** (p=0.237) — the
+first tie against any baseline at full scale. Every other pairwise comparison checked so
+far remains significantly in the baseline's favor (p < 0.002).
 
-This is a **structural issue, not a parameter-tuning gap** — the auto-scaled
-`theta_min`/`theta_max`/`mutation_prob` formulas from the earlier tuning passes (below)
-were already active during this trace. Root cause: QIEA's fixed-size population (one
-individual per MOEA/D subproblem) converges to its neighborhood guides, and the
-diversity-stagnation escape — "ARGC", the algorithm's namesake mechanism — essentially
-never fires under its current threshold (confirmed separately in `paper1.txt` section 12).
-With no escape actually engaging, there's no way to find new archive points once
-converged, so a longer generation budget helps every other algorithm but does nothing for
-QIEA past its freeze point.
-
-**Current top priority** (supersedes prior tuning-focused next steps): design and test a
-diversity-reinjection or plateau-gated restart mechanism, and confirm the plateau
-generalizes to the other 5 instances (only A-n32-k5 and route2_199 traced so far). See
-`paper1.txt` section 14g for the full open-questions list.
+**Current top priority:** the remaining gap is not explained by the plateau/
+stagnation-escape failure alone — `H`/`n_partitions` (QIEA's population size, currently
+fixed at the same value as MOEA/D's and RVEA's for fairness) is the most plausible
+remaining lever and has not been touched. See `paper1.txt` section 15g for the full
+open-questions list.
 
 <details>
 <summary>Earlier tuning passes (2026-08-12/13, superseded by the finding above)</summary>

@@ -1,0 +1,2 @@
+instance,hv_control_mean,hv_control_std,hv_candidate_mean,hv_candidate_std,pct_change,wilcoxon_stat,wilcoxon_p
+M-n200-k16,49599735242482.836,15038242361821.246,67170829194506.23,9335852592141.93,35.42578174282978,15.0,0.0002613067626953125

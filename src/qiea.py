@@ -20,7 +20,7 @@ Two decode modes share this representation:
 Many-objective scalability: MOEA/D-style decomposition. A fixed set of H uniformly
 spread weight vectors (Das-Dennis simplex lattice) partitions the objective space into
 H Tchebycheff subproblems, one individual per subproblem, each looking only at a small
-neighborhood of nearby weight vectors -- this is the paper1.txt-requested "hybridize
+neighborhood of nearby weight vectors -- this is the logs.txt-requested "hybridize
 with a decomposition scheme (MOEA/D-style) ... for scalability to many objectives".
 
 Adaptive rotation gate: each qubit is rotated toward the corresponding qubit of the best
@@ -121,7 +121,7 @@ front geometry, not any measurable size parameter, so neighborhood_size is left 
 its fixed default (10) rather than shipping an unjustified formula.
 
 Plateau-gated diversity reinjection (restart_patience/restart_fraction): a
-generation-trace diagnostic (diag_qiea_generation_trace.py, see paper1.txt section
+generation-trace diagnostic (diag_qiea_generation_trace.py, see logs.txt section
 14) found QIEA hits a hard hypervolume plateau early in a 500-generation run and
 then NEVER improves again -- e.g. frozen bit-for-bit from generation 60 onward on
 A-n32-k5 -- while every pymoo baseline keeps climbing steadily to generation 500.
@@ -147,7 +147,7 @@ Wilcoxon p < 0.005 on every single instance -- by far the largest and most gener
 effect found across this entire tuning investigation (sections 8-14 combined).
 Shipped as the new default (previously restart_patience=None, i.e. disabled).
 Continuous decode (ZDT/DTLZ/WFG) has not been checked for an analogous plateau --
-open, see paper1.txt section 15.
+open, see logs.txt section 15.
 """
 import numpy as np
 
@@ -326,7 +326,7 @@ class QIEA:
         """Plateau-gated diversity reinjection: reseed a fraction of subproblems to
         fresh random theta when the archive has stopped growing for restart_patience
         generations -- elitist (untouched individuals keep their converged state), see
-        paper1.txt section 14g/15 for the rationale (the fixed-tol diversity-stagnation
+        logs.txt section 14g/15 for the rationale (the fixed-tol diversity-stagnation
         escape essentially never fires once truly converged, per section 12's finding)."""
         k = max(1, int(round(self.restart_fraction * self.H)))
         idx = self.rng.choice(self.H, size=k, replace=False)

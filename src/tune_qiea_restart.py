@@ -1,6 +1,6 @@
 """
 Screen for the plateau-gated diversity-reinjection mechanism added to qiea.py
-(restart_patience/restart_fraction, default off -- see paper1.txt section 14/15).
+(restart_patience/restart_fraction, default off -- see logs.txt section 14/15).
 Directly tests whether reseeding a fraction of subproblems once the archive has
 stopped growing lets QIEA break past the hard hypervolume plateau found by
 diag_qiea_generation_trace.py on A-n32-k5 (freezes ~gen 60) and route2_199

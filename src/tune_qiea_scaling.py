@@ -2,7 +2,7 @@
 Tests whether QIEA's rotation-gate step size (theta_max/theta_min) needs to scale
 with instance size (n_var) rather than stay fixed in absolute radians.
 
-Motivation (see paper1.txt section 8f): tuning theta_min=0.1 on A-n32-k5 (n_var=31)
+Motivation (see logs.txt section 8f): tuning theta_min=0.1 on A-n32-k5 (n_var=31)
 gave +15% hypervolume there but did NOT generalize to E-n101-k8 (n_var=100) or
 route2_199 (n_var=198), where QIEA remained the weakest of the five algorithms.
 

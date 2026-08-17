@@ -29,7 +29,7 @@ For the permutation decode, both the rotation-step size and the mutation rate de
 function of instance size (`n_var`) rather than a fixed constant — a fixed absolute value
 tuned on a small instance becomes disproportionately disruptive to `argsort`-decoded tours as
 the instance grows, which was quietly capping QIEA's performance on larger CVRP instances (see
-`paper1.txt` sections 9-10).
+`logs.txt` sections 9-10).
 
 ## Problem formulation
 
@@ -150,7 +150,7 @@ Writes `results/<instance_name>_indicators.csv` (hypervolume/spacing/spread per 
 **Plateau fixed (2026-08-17)** — QIEA hit a hard hypervolume plateau early in every
 500-generation run (frozen bit-for-bit from generation ~60 onward on A-n32-k5, ~440-450
 on route2_199) while every baseline kept climbing steadily to generation 500 (found via
-`src/diag_qiea_generation_trace.py`; see `paper1.txt` section 14). Root cause: QIEA's
+`src/diag_qiea_generation_trace.py`; see `logs.txt` section 14). Root cause: QIEA's
 fixed-size population (one individual per MOEA/D subproblem) converges to its
 neighborhood guides, and the diversity-stagnation escape — "ARGC", the algorithm's
 namesake mechanism — essentially never fires under its original threshold, so nothing
@@ -164,7 +164,7 @@ found *every* tested configuration beat the restart-disabled control on every in
 screened, and a 20-seed confirmatory run validated the chosen default
 (`patience=10, fraction=0.5`) as significant on **all 7 CVRP instances** (+27.7% to
 +66.0% hypervolume, Wilcoxon p < 0.005 everywhere) — the largest and most universally
-reproducible effect found across the whole tuning investigation (`paper1.txt`
+reproducible effect found across the whole tuning investigation (`logs.txt`
 section 15).
 
 **Where this leaves QIEA vs the baselines**, re-running the full 30-run/`--n-gen 500`
@@ -179,13 +179,13 @@ far remains significantly in the baseline's favor (p < 0.002).
 **Current top priority:** the remaining gap is not explained by the plateau/
 stagnation-escape failure alone — `H`/`n_partitions` (QIEA's population size, currently
 fixed at the same value as MOEA/D's and RVEA's for fairness) is the most plausible
-remaining lever and has not been touched. See `paper1.txt` section 15g for the full
+remaining lever and has not been touched. See `logs.txt` section 15g for the full
 open-questions list.
 
 <details>
 <summary>Earlier tuning passes (2026-08-12/13, superseded by the finding above)</summary>
 
-Three tuning passes (`paper1.txt` sections 8–10), all under a strict population-fairness
+Three tuning passes (`logs.txt` sections 8–10), all under a strict population-fairness
 constraint (QIEA's population size, `n_partitions`, kept identical to MOEA/D's and
 RVEA's in every comparison):
 
@@ -201,8 +201,8 @@ tied with NSGA-II/SPEA2/MOEA-D on the two larger instances tested) — but the f
 campaign above shows that result did not hold once run at the paper's actual generation
 budget. `neighborhood_size` and the diversity-stagnation-boost parameters were also
 investigated and left unchanged (real, reproducible effects too instance-specific or
-counterproductive to ship as defaults — see `paper1.txt` sections 11–13).
+counterproductive to ship as defaults — see `logs.txt` sections 11–13).
 
 </details>
 
-See `paper1.txt` in the parent directory for the full project plan and implementation log.
+See `logs.txt` in this repository for the full project plan and implementation log.

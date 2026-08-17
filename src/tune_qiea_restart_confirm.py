@@ -5,7 +5,7 @@ tune_qiea_restart_finegrid.py both found EVERY tested config beats the
 restart-disabled control on all three instances screened (A-n32-k5, E-n101-k8,
 route2_199), but the per-instance-optimal patience did not agree (10, 5, 15
 respectively) -- no clean size-based formula, same situation as neighborhood_size
-in paper1.txt section 11. restart_patience=10/restart_fraction=0.5 was the most
+in logs.txt section 11. restart_patience=10/restart_fraction=0.5 was the most
 robust single choice by average rank (top-3 on all three instances screened,
 never an outlier) -- this script confirms that ONE fixed candidate vs control
 with more seeds, and extends coverage to all 7 instances (only 3 were screened).

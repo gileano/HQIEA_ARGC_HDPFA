@@ -3,7 +3,7 @@ OFAT hyperparameter sweep for QIEA on a cheap CVRP instance.
 
 Purpose: qiea.py's neighborhood_size, mutation_prob, theta_max/theta_min, and
 n_partitions (which sets H, the population/weight-vector count) were first-guess
-defaults (paper1.txt section 7), and QIEA was the weakest or tied-weakest
+defaults (logs.txt section 7), and QIEA was the weakest or tied-weakest
 algorithm on every pilot instance run so far. This sweeps one hyperparameter at
 a time -- holding the rest at qiea.py's current defaults -- on A-n32-k5, the
 cheapest instance, to find a config worth carrying into the full

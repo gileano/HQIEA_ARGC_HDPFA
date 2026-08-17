@@ -3,7 +3,7 @@ Diagnostic (no tuning, no source changes): trace hypervolume-vs-generation for Q
 and the four pymoo baselines over a full 500-generation run, to check whether QIEA
 plateaus early while the baselines keep improving -- the leading hypothesis for why
 QIEA went from "ties NSGA-II/SPEA2" at n-gen=80 pilots to "weakest of five on every
-instance" at the paper's actual 30-run/n-gen=500 scale (see paper1.txt section 14
+instance" at the paper's actual 30-run/n-gen=500 scale (see logs.txt section 14
 investigation this diagnostic feeds).
 
 Reference point for hypervolume is fixed per (instance, seed) run: 1.1x the nadir of

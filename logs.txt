@@ -1,0 +1,877 @@
+Paper 1: Multi-Objective / Pareto-Front QIEA
+
+Working title: "A Hybrid Quantum-Inspired Evolutionary Algorithm with Adaptive Rotation-Gate Control for High-Dimensional Pareto-Front Approximation: Application to Urban Waste Collection Routing"
+
+Gap you're filling: The Soft Computing (2025) continuous-space QIEA paper and the King (2025/2026) quantum-annealing MOO papers both stay in synthetic benchmark territory or 2–3 objective cases. Neither validates on a real many-objective (4+) routing problem. That's your opening — extend qubit-encoded MOO to a real-world 4–5 objective VRP (distance, time, cost, emissions, workload balance) using your FADSE framework as the implementation backbone.
+
+Methodology:
+
+Problem formulation — formalize Sibiu waste collection as a many-objective CVRP (Capacitated VRP) with 4+ conflicting objectives.
+Algorithm design — qubit chromosome encoding for route assignment; adaptive rotation gate (angle schedule informed by convergence diversity, extending the H-epsilon gate literature); hybridize with a decomposition scheme (MOEA/D-style) or reference-vector guidance for scalability to many objectives.
+Two-stage validation:
+Synthetic: ZDT1–6, DTLZ1–7, WFG1–9 test suites (standard, reviewers will expect these)
+Real-world: CVRPLIB instances, then your actual Sibiu GIS/routing data
+Baselines: NSGA-II, SPEA2, MOEA/D, a reference-vector-guided EA, and — since it's very recent — a QAOA-based MOO baseline (Kotil et al. 2025) to show quantum-inspired vs. actual-quantum-approximate performance.
+Metrics: hypervolume, IGD/IGD+, spacing, spread, convergence speed, wall-clock runtime.
+Statistical validation: Wilcoxon signed-rank + Friedman test across 30 independent runs per instance (standard EA-paper rigor).
+
+Tools:
+
+pymoo (Python) — has NSGA-II/SPEA2/MOEA-D and the full ZDT/DTLZ/WFG suite built in, plus hypervolume/IGD indicators out of the box. Fastest way to get baselines running.
+jMetalPy — alternative/complement, good for many-objective indicators.
+DEAP — for building your custom qubit-encoded QIEA from scratch (more control than pymoo for novel operators).
+PlatEMO (MATLAB) — if you want a second, widely-cited platform for cross-validation of results (common in top-tier EA journals).
+OSMnx + NetworkX — pull real Sibiu street network graph from OpenStreetMap and generate realistic routing distances/times for the real-world validation stage.
+OR-Tools — sanity-check exact/near-optimal solutions on small instances to validate your Pareto front quality.
+
+================================================================================
+IMPLEMENTATION LOG — Paper 2 (updated 2026-08-12)
+================================================================================
+
+0. Status at a glance
+   Working end-to-end: data pipeline, problem formulation, the QIEA itself, all four
+   classical baselines, synthetic-benchmark validation, and real-world validation on
+   both CVRPLIB and actual Sibiu data, plus a statistics harness (Wilcoxon/Friedman).
+   Everything below is real, executed code with real (pilot-scale) results — nothing
+   here is a plan for future work unless explicitly marked as such in section 7.
+
+1. Project setup
+   Location: HQIEA_ARGC_HDPFA/ subfolder inside this Paper1/ working directory.
+   Stack decision: Python, not FADSE/C#. FADSE (the framework behind the first paper,
+   source lives separately under ~/Documents/Medicus/PDP2026) is a from-scratch .NET
+   implementation with no ready-made NSGA-II/SPEA2/MOEA-D/RVEA baselines or Pareto
+   indicators — pymoo/DEAP/jMetalPy/OR-Tools give all of that for free, which is why
+   Paper 2 moved to Python instead of extending FADSE.
+   OSMnx dropped: real Sibiu routing data already existed as pre-computed distance
+   matrices in "Sibiu routes/" (sizes match route1_334/route2_199/route3_202 from the
+   first paper), so there was no need to re-pull OpenStreetMap graphs.
+   Environment:
+     cd HQIEA_ARGC_HDPFA
+     python3 -m venv .venv
+     source .venv/bin/activate
+     pip install -r requirements.txt
+   requirements.txt pins: pymoo 0.6.2, deap 1.4, jmetalpy, ortools, numpy 2.5.2,
+   pandas 3.0.5, scipy 1.18.0, statsmodels, matplotlib, tqdm.
+
+2. Project structure
+   HQIEA_ARGC_HDPFA/
+     .venv/                        Python virtual environment (not committed)
+     requirements.txt                pinned dependency versions
+     data/
+       raw/                          original Sibiu distance-matrix CSVs (copied from ../Sibiu routes/)
+         SB25SOM_distance_matrix.csv   -> mapped to route1_334 (334 nodes, matched by node count)
+         SB30SOM_distance_matrix.csv   -> mapped to route2_199 (199 nodes)
+         SB45SOM_distance_matrix.csv   -> mapped to route3_202 (202 nodes)
+         *** this SBxx -> routeN mapping is inferred by size only, NOT yet confirmed against
+             your original records — verify before trusting any Sibiu-specific result ***
+       cvrplib_raw/                   downloaded CVRPLIB .vrp files (TSPLIB-CVRP format)
+         A-n32-k5.vrp, A-n33-k5.vrp, E-n101-k8.vrp, M-n200-k16.vrp
+       processed/                     final JSON instances consumed by every algorithm
+         route1_334.json, route2_199.json, route3_202.json        (from Sibiu)
+         A-n32-k5.json, A-n33-k5.json, E-n101-k8.json, M-n200-k16.json  (from CVRPLIB)
+     src/
+       build_instances.py            Sibiu CSV -> JSON instance (adds synthetic demand/capacity
+                                      + independent time/cost/emission structure)
+       build_cvrplib_instances.py    CVRPLIB .vrp -> same JSON schema (reuses build_instances'
+                                      synthetic time/cost/emission generator)
+       problem.py                    the CVRP model: decode (permutation -> routes),
+                                      evaluate (5 objectives), pymoo Problem wrapper
+       qiea.py                       the novel algorithm: qubit-angle chromosome +
+                                      MOEA/D-style decomposition + adaptive rotation gate
+       run_baselines.py              NSGA-II / SPEA2 / MOEA-D / RVEA via pymoo, wired to
+                                      the same CVRP problem as the QIEA
+       run_synthetic.py              QIEA vs NSGA-II on ZDT1-3 / DTLZ1-2 / WFG1
+       run_experiment.py             full comparison: QIEA + 4 baselines, N seeds,
+                                      indicators, Wilcoxon + Friedman
+       metrics.py                    hypervolume / spacing / spread / IGD / IGD+ /
+                                      Wilcoxon / Friedman
+       ortools_sanity.py             exact/near-optimal single-objective (distance)
+                                      reference via OR-Tools
+       sanity_check.py               first throwaway smoke test (pymoo + data pipeline);
+                                      superseded by problem.py, kept for reference
+     results/
+       <instance>_indicators.csv     per-run indicator table (hypervolume, spacing,
+                                      spread, n_solutions, time)
+       <instance>_fronts.npz         raw objective-space fronts, every algorithm x run
+
+3. What each objective actually measures (full detail in problem.py's docstring)
+   f1 distance (km)      sum of edge distances over all routes, depot round-trips included
+   f2 time (h)            NOT proportional to distance: a per-edge log-normal "road factor"
+                           models heterogeneous congestion/road type, independent of raw distance
+   f3 cost                FIXED_COST_PER_VEHICLE * num_routes + variable fuel cost (scaled by
+                           the same road factor) — genuinely depends on how many vehicles a
+                           solution uses, not just total km
+   f4 emissions (kg CO2)  distance + idling(time) + payload-dependent term; payload grows
+                           monotonically along a route (a COLLECTION truck, not delivery), so
+                           this is sequence-dependent and computed per route, not a static matrix
+   f5 workload balance    std. dev. of per-route completion time across the vehicles used
+
+   IMPORTANT: the first version of this pipeline made f2/f3/f4 pure scalar multiples of f1,
+   which silently collapsed every Pareto front to a single point (caught by a pymoo sanity
+   run). Fixed by giving time/cost/emissions independent random structure. Any future change
+   to the instance generator should re-check for front collapse before trusting results.
+
+4. Algorithm design rationale (qiea.py)
+   Chromosome: one qubit angle theta in [0, pi/2] per decision variable (a real-amplitude
+   simplification of the general qubit state), using the same rotation-gate math as the first
+   paper's Eq. 3-4, generalized to a decomposition-guided update.
+   Decode has two modes on the SAME representation:
+     "permutation" (CVRP): tour = argsort(theta). Sorting real numbers can never produce a
+        duplicate, so there is NO repair step. This directly fixes the scalability failure
+        the first paper reported: "the potential problem of the QIEA on a high number of
+        cities is the repair step ... the algorithm loses its diversity on high number of
+        cities."
+     "continuous" (ZDT/DTLZ/WFG): x_i = xl_i + sin(theta_i)^2 * (xu_i - xl_i).
+   The same core loop (rotation, crossover, mutation, decomposition) validates on both the
+   synthetic suites and the real-world CVRP, matching the plan's two-stage validation.
+   Many-objective scalability: MOEA/D-style decomposition via Das-Dennis weight vectors
+   (pymoo's get_reference_directions), Tchebycheff scalarization, T-nearest-neighbor
+   mating/replacement — this is the "hybridize with a decomposition scheme" item from the plan.
+   Adaptive rotation gate: step size decays over generations (explore -> exploit) but is
+   boosted 3x whenever population angular diversity stalls for `diversity_window` generations
+   — the "angle schedule informed by convergence diversity" item from the plan.
+
+5. How to run everything
+   All commands assume: cd HQIEA_ARGC_HDPFA && source .venv/bin/activate
+
+   a) Regenerate instances from raw data (only needed if raw CSVs/.vrp files change):
+        python src/build_instances.py
+        python src/build_cvrplib_instances.py
+
+   b) Quick sanity checks (seconds):
+        python src/sanity_check.py         # pymoo + Sibiu data pipeline smoke test
+        python src/problem.py              # decode/evaluate smoke test on route2_199
+        python src/qiea.py                 # QIEA alone on route2_199 (~3s, 60 generations)
+        python src/ortools_sanity.py       # near-optimal distance reference on A-n32-k5
+
+   c) Synthetic benchmark comparison, QIEA vs NSGA-II on ZDT/DTLZ/WFG (~15s total):
+        python src/run_synthetic.py
+
+   d) Baselines only, on one instance:
+        python -c "from pathlib import Path; from src.run_baselines import run_all; \
+                    run_all(Path('data/processed/route2_199.json'), n_gen=50, pop_size=80)"
+
+   e) Full comparison (QIEA + all 4 baselines, N seeds, indicators + stats) on one instance:
+        python src/run_experiment.py <instance_name> --n-gen <G> --n-runs <N> --pop-size <P>
+        e.g.: python src/run_experiment.py route2_199 --n-gen 100 --n-runs 5 --pop-size 80
+        Available <instance_name> values: route1_334, route2_199, route3_202,
+                                           A-n32-k5, A-n33-k5, E-n101-k8, M-n200-k16
+        Writes results/<instance_name>_indicators.csv and results/<instance_name>_fronts.npz.
+        Pilot budgets used so far: n-gen 60-80, n-runs 3-5 (roughly a minute per instance).
+        The paper's target protocol is n-gen 500-1000, n-runs 30, across ALL instances —
+        that is hours of compute and has NOT been run yet (see section 7).
+
+6. Results so far (pilot scale only — NOT the paper's final numbers)
+   Instance    | Best hypervolume  | Where QIEA lands
+   A-n32-k5    | RVEA / MOEA-D     | roughly tied with NSGA-II/SPEA2, well behind RVEA/MOEA-D
+   E-n101-k8   | MOEA-D            | weakest of the five algorithms
+   route2_199  | RVEA              | weakest of the five algorithms
+   Friedman test was significant (p < 0.05) on every instance tried — the algorithms are
+   not just noise apart — but right now that difference favors the decomposition baselines,
+   not the QIEA. This is a real, useful signal for a first working draft: the algorithm
+   produces valid, spread, non-degenerate fronts (the design is sound), it is just not
+   tuned yet.
+
+7. Explicitly deferred / open decisions (not done, on purpose — need a decision, not more typing)
+   - QAOA-MOO baseline (Kotil et al. 2025): a real quantum-circuit baseline, its own
+     substantial build (Qiskit + a quantum MOO formulation), not attempted.
+   - Full 30-run x 500-1000-generation statistical campaign across all 7 instances: only
+     small pilots run so far to prove correctness end-to-end. This is a multi-hour compute
+     job — needs a decision on when/how to run it (foreground vs. background, which
+     instances first).
+   - QIEA tuning: neighborhood size (T), mutation probability, theta_max/theta_min
+     schedule, and H (population/weight-vector count) were all first-guess defaults.
+     PARTIALLY DONE 2026-08-12 -- see section 8: theta_min raised 0.02 -> 0.1 based on
+     a sweep on A-n32-k5, but this does NOT generalize to larger instances. Tuning on
+     E-n101-k8/route2_199 (and the other T/mutation_prob/H knobs) is still open.
+   - Sibiu SBxx -> routeN mapping (section 2) is inferred by node count only — confirm
+     against your original records.
+   - Demand/capacity/road-factor/cost/emission values are ALL synthesized (seed=42, exact
+     distributions documented in build_instances.py's docstring) because no real demand/
+     capacity data exists for these routes. This MUST be stated as an explicit limitation/
+     assumption in the paper, and should be replaced with real bin-fill/weight data if that
+     ever becomes available.
+   - PlatEMO/MATLAB cross-validation (listed as a "nice to have" tool above) not started.
+   - jMetalPy and DEAP are installed but unused so far — pymoo covered every baseline
+     needed (NSGA-II, SPEA2, MOEA/D, RVEA all ship in pymoo directly).
+
+8. QIEA hyperparameter tuning pass (2026-08-12)
+   New scripts: src/tune_qiea.py (first, naive sweep), src/tune_qiea_matched.py
+   (population-fairness-corrected sweep). Both are OFAT (one-factor-at-a-time) sweeps
+   on A-n32-k5, the cheapest instance, chosen because section 7 flagged neighborhood_size,
+   mutation_prob, theta_max/theta_min, and H (via n_partitions) as first-guess defaults.
+
+   a) First sweep (tune_qiea.py): swept all five knobs against qiea.py's defaults,
+      5 seeds/config, n_gen=80. Best-looking single change was n_partitions=8 (H=495,
+      up from the default H=126), +40% hypervolume.
+
+   b) Fairness catch: n_partitions=8 for QIEA alone would have been an invalid
+      comparison. run_baselines.build_algorithms() uses n_partitions=5 for MOEA/D's
+      AND RVEA's reference directions too (same default as QIEA), so QIEA's H=126 is
+      already exactly population-matched to MOEA/D and RVEA in run_experiment.py.
+      Raising QIEA's n_partitions alone would just buy it more function evaluations
+      per generation than the two baselines it currently loses to -- not a smarter
+      search. n_partitions was therefore EXCLUDED from further tuning and left at the
+      shared default (5). Only NSGA-II/SPEA2 use a separately-set pop_size (80-100),
+      a smaller, pre-existing mismatch not addressed here.
+
+   c) Second sweep (tune_qiea_matched.py): n_partitions held fixed at 5, resweeping
+      neighborhood_size/mutation_prob/theta_max/theta_min (theta_min's range extended
+      past the first sweep's 0.1 ceiling to check it wasn't a boundary artifact -- it
+      wasn't; 0.1 is an interior optimum, values up to 0.25 were tested and were worse).
+      Naively combining every individual "winner" (neighborhood_size=10 i.e. unchanged,
+      theta_max=0.7, theta_min=0.1, mutation_prob=0.1) gave WORSE hypervolume than the
+      unmodified baseline (8.56e11 vs 1.02e12) -- a textbook OFAT interaction trap.
+
+   d) Explicit 2x2x2 factorial over theta_min/theta_max/mutation_prob (5 seeds each)
+      showed the combined config loses specifically because theta_max=0.7 and
+      mutation_prob=0.1 each interact badly with theta_min=0.1. Changing theta_min
+      ALONE (keeping theta_max=0.35, mutation_prob=0.05, neighborhood_size=10 at their
+      original defaults) was the single best-performing config in the factorial.
+
+   e) Verified with 20 seeds, matched population, n_gen=80: theta_min=0.1 gives mean
+      hypervolume 6.62e11 vs default's 5.77e11 (+15%), Wilcoxon p=0.044 (significant).
+      qiea.py's theta_min default changed from 0.02 to 0.1 on this basis. This is a
+      real, modest, population-fair improvement -- not a full fix for the "QIEA behind
+      MOEA/D and RVEA" finding.
+
+   f) Re-ran run_experiment.py on the same three instances as the 2026-08-11 pilot
+      (A-n32-k5 n-runs=5, E-n101-k8 n-runs=3, route2_199 n-runs=3; all at n-gen=80,
+      pop-size=80), overwriting results/*_indicators.csv and results/*_fronts.npz:
+        A-n32-k5    (32 nodes)  : QIEA now beats NSGA-II and SPEA2, still behind
+                                   MOEA/D and RVEA -- IMPROVED from tied-weakest.
+        E-n101-k8   (101 nodes) : QIEA still weakest of the five -- UNCHANGED.
+        route2_199  (199 nodes) : QIEA still weakest of the five -- UNCHANGED.
+      Conclusion: the theta_min=0.1 gain, tuned exclusively on the 32-node instance,
+      does not generalize to the 101- and 199-node instances. Open question for next
+      session: whether theta_min (or the rotation schedule generally) needs to scale
+      with n_var/instance size, or whether a different knob entirely explains QIEA's
+      gap on larger instances. neighborhood_size and mutation_prob showed no
+      improvement over defaults in either sweep and have not been retuned on the
+      larger instances at all.
+
+9. Rotation-step scaling investigation (2026-08-13)
+   Directly answers section 8f's open question. New script: src/tune_qiea_scaling.py.
+
+   a) Mechanism: permutation decode is tour = argsort(theta) over theta in [0, pi/2].
+      The average gap between adjacent sorted theta values is ~(pi/2)/n_var. A fixed
+      absolute rotation step (theta_min/theta_max) is therefore an increasingly large
+      multiple of that gap as n_var grows -- e.g. theta_min=0.1 is ~2x the gap at
+      n_var=31 (A-n32-k5) but ~13x the gap at n_var=198 (route2_199), meaning the
+      "exploit" phase late in the run keeps making disruptive, coarse moves relative
+      to local tour structure on larger instances instead of fine-tuning.
+
+   b) Screening sweep: theta_min/theta_max expressed as multiples of gap =
+      (pi/2)/n_var, grid mmin in {0.5,1,2,4,8} x mmax in {2,4,7,14,28}, 3 seeds/config,
+      n_gen=80, n_partitions=5 (matched to MOEA/D+RVEA), across A-n32-k5 (n_var=31),
+      E-n101-k8 (n_var=100), route2_199 (n_var=198). Per-instance-best multipliers:
+      A-n32-k5 mmin=2/mmax=7 (~matches the existing absolute default almost exactly),
+      E-n101-k8 mmin=0.5/mmax=4, route2_199 mmin=0.5/mmax=7 -- mmin clearly needs to
+      shrink relative to gap as n_var grows past ~31; mmax~7 is comparatively stable.
+
+   c) Confirmed with 30 seeds + paired Wilcoxon (per-instance-optimal multipliers vs
+      absolute default 0.1/0.35, matched shared reference point): route2_199 +18.1%
+      hypervolume (p=0.0137, significant), E-n101-k8 +10.2% (p=0.119, trending, not
+      significant), A-n32-k5 -4.1% (p=0.598, not significant -- i.e. no real change,
+      as expected since the winning multiplier there is ~the existing default anyway).
+
+   d) Single deployable formula (not per-instance-tuned values -- shipping an
+      algorithm with per-instance hyperparameters would invalidate any fair
+      comparison to the baselines, same fairness argument as section 8b):
+        theta_min = min(0.1, 2*gap),  theta_max = min(0.35, 7*gap),  gap = (pi/2)/n_var.
+      Both bounds are clamped to the OLD absolute defaults so the formula reduces
+      EXACTLY to 0.1/0.35 at n_var<=31 (A-n32-k5, where they were originally tuned)
+      and shrinks below that only for larger instances. Applies to permutation
+      decode only -- continuous decode (ZDT/DTLZ/WFG) is unaffected, since there is
+      no argsort step and no evidence this mechanism applies there.
+
+   e) Bug caught before shipping: an earlier, unclamped version of theta_max
+      (theta_max = 7*gap, no upper clamp) evaluates to ~0.3547 at A-n32-k5's
+      n_var=31 -- a ~1.3% drift above the tuned 0.35. That tiny drift alone flipped
+      QIEA from beating NSGA-II/SPEA2 (the documented section 8f state) to being the
+      weakest of all five algorithms in a 5-seed run_experiment.py comparison,
+      demonstrating the permutation-decode QIEA is quite sensitive to small
+      rotation-step perturbations at small n_var. Fixed by clamping theta_max the
+      same way theta_min already was; re-running confirmed A-n32-k5 now reproduces
+      the committed pre-change results bit-for-bit.
+
+   f) qiea.py's theta_max/theta_min constructor defaults changed from fixed
+      absolute values (0.35, 0.1) to None, resolved at construction time via
+      QIEA._default_theta_bounds(decode, n_var) using the formula in (d). Explicit
+      values passed by callers (tune_qiea*.py, etc.) are unaffected.
+
+   g) Re-ran run_experiment.py on the same three instances/budgets as section 8f
+      (A-n32-k5 n-runs=5, E-n101-k8 n-runs=3, route2_199 n-runs=3, n-gen=80,
+      pop-size=80), overwriting results/*_indicators.csv and results/*_fronts.npz:
+        A-n32-k5    (32 nodes)  : identical to section 8f (QIEA beats NSGA-II/SPEA2,
+                                   still behind MOEA/D and RVEA) -- exact
+                                   reproduction, as designed.
+        E-n101-k8   (101 nodes) : QIEA still weakest of the five -- UNCHANGED.
+        route2_199  (199 nodes) : QIEA still weakest of the five -- UNCHANGED.
+      The isolated, statistically-significant hypervolume gain from (c) did not
+      change QIEA's RANK against MOEA/D/RVEA on either larger instance in this
+      3-seed pilot. Conclusion: the scaling fix is real, mechanistically grounded,
+      causes no regression, and measurably improves QIEA's own front quality on
+      larger instances -- but it fixes the specific problem it targeted (why
+      theta_min tuning didn't generalize), not QIEA's broader competitiveness gap
+      against MOEA/D and RVEA on larger CVRP instances. That gap looks structural
+      (population/decomposition design, not rotation-step size) and remains open.
+
+   h) Open question for next session: with the rotation-step-scaling mechanism now
+      ruled in (helps, doesn't fully explain the gap), the remaining section 7/8f
+      items -- neighborhood_size and mutation_prob retuned specifically on
+      E-n101-k8/route2_199 (never done; both prior sweeps only retuned them on
+      A-n32-k5) -- are the next candidate lever. Also worth more seeds (10-15+) on
+      E-n101-k8/route2_199 specifically for run_experiment.py, since 3-seed pilots
+      showed enough noise in this session (see (e)) that a single-digit-seed full
+      comparison is not a reliable read on whether a change moved QIEA's rank.
+
+10. Mutation-rate scaling investigation (2026-08-13, same session as 9, follow-up)
+    Directly answers section 9h's open lever. New scripts: src/tune_qiea_large.py
+    (initial OFAT screen), src/tune_qiea_mutation_scaling.py (isolation sweep),
+    src/tune_qiea_mutation_confirm.py (confirmatory run + interaction check).
+
+    a) Initial OFAT screen (tune_qiea_large.py): neighborhood_size and mutation_prob
+       swept together (n_partitions fixed at 5, theta bounds left on the section-9
+       auto-scaled formula) on E-n101-k8 and route2_199, 5 seeds/config, n_gen=80.
+       Combined best-per-param config (mutation_prob=0.01 + a much larger
+       neighborhood_size: 50 on E-n101-k8, 20 on route2_199) looked enormous:
+       +58.7% HV on E-n101-k8 (Wilcoxon p=0.0003, 15-seed confirm), +109.1% on
+       route2_199 (p=0.0001, 15-seed confirm).
+
+    b) Fairness/interaction check: A-n32-k5's existing tune_qiea_matched.py CSV
+       already had mutation_prob=0.01 tested and it was WORSE than default there --
+       opposite direction from the larger instances. Also, on E-n101-k8, the
+       screen's mutation_prob-alone number (3.44e12) beat the "combined" nb+mp
+       number from the confirm run (2.71e12) -- the same OFAT-interaction shape
+       section 8c hit combining theta_min/theta_max/mutation_prob. Both signals said
+       don't trust the combined config yet.
+
+    c) Mechanistic hypothesis: quantum_mutation flips each gene independently with
+       probability mutation_prob, so expected mutated genes per individual =
+       mutation_prob * n_var -- the same "fixed absolute parameter, more disruptive
+       as n_var grows" mechanism as section 9's rotation-step finding, just for
+       mutation instead of rotation. Isolated sweep (mutation_prob only,
+       neighborhood_size held at default 10) across all three instances, expressed
+       as k = mutation_prob * n_var in {0.5,1,1.5,2,3,4,6,9.9}: A-n32-k5's own
+       optimum sits at k~1.5-2 (matching its existing default almost exactly,
+       0.05*31=1.55); E-n101-k8 best at k=1 (+70.4% HV, p=0.125, 5 seeds);
+       route2_199 best at k=4 (+127.2% HV, p=0.0625, 5 seeds). Optimal k is not
+       perfectly uniform across instances, but is clearly ~1-4 everywhere, versus
+       the ~5-10 that a fixed absolute mutation_prob=0.05 produces at these n_var.
+
+    d) Deployable formula, same clamping rationale as section 9d (not
+       per-instance-tuned -- would break baseline fairness):
+         mutation_prob = min(0.05, 1.55 / n_var)
+       C=1.55 chosen so it reduces EXACTLY to the old default 0.05 at n_var=31
+       (A-n32-k5) -- verified bit-for-bit identical mutation_prob there (no drift),
+       learned from section 9e's finding that this representation is sensitive to
+       even ~1% drift in a scale-family parameter at small n_var.
+
+    e) 15-seed confirmatory run, matched population, isolating mutation_prob from
+       neighborhood_size (held at default 10) to settle (b)'s interaction question:
+         A-n32-k5:   formula reduces to mp=0.05 exactly -> bit-for-bit identical to
+                     baseline, zero regression risk (as designed).
+         E-n101-k8:  mutation-formula-only (mp=0.0155) vs default: +49.3% HV,
+                     Wilcoxon p=0.0026 (significant). Adding back the screened
+                     neighborhood_size=50 on top: -0.1% (p=0.978, no effect) --
+                     confirms (b)'s suspicion; neighborhood_size's apparent gain in
+                     the (a) screen was an OFAT interaction artifact of mutation_prob
+                     still being wrong, not a real effect.
+         route2_199: mutation-formula-only (mp=0.0078) vs default: +64.5% HV,
+                     Wilcoxon p=0.0001 (significant). Adding back neighborhood_size=20
+                     on top: A REAL additional +30.3% (p=0.0181, significant) -- here
+                     neighborhood_size does help further, unlike E-n101-k8.
+       Conclusion: mutation_prob scaling is a robust, general, zero-regression-risk
+       fix, shipped as the new default (see (f)). neighborhood_size is a real lever
+       on route2_199 but not on E-n101-k8, with no clean size-based formula linking
+       the two (H is identical across all three instances since n_partitions/n_obj
+       are both fixed at 5) -- per-instance neighborhood_size is therefore NOT
+       shipped as a default (same fairness argument as section 8b/9d), left as an
+       open, instance-specific follow-up rather than baked into qiea.py.
+
+    f) qiea.py's mutation_prob constructor default changed from a fixed 0.05 to
+       None, resolved at construction time via QIEA._default_mutation_prob(decode,
+       n_var) using the formula in (d), mirroring _default_theta_bounds. Continuous
+       decode (ZDT/DTLZ/WFG) keeps the old fixed 0.05 -- no evidence this mechanism
+       applies there.
+
+    g) Re-ran run_experiment.py on the same three instances/budgets as section 9g
+       (A-n32-k5 n-runs=5, E-n101-k8 n-runs=3, route2_199 n-runs=3, n-gen=80,
+       pop-size=80), overwriting results/*_indicators.csv and results/*_fronts.npz:
+         A-n32-k5    : identical to section 9g (exact reproduction, as designed).
+         E-n101-k8   : QIEA still nominally last of five at 3 seeds, but its ratio
+                       to NSGA-II/SPEA2 jumped from ~0.70-0.71 (section 9g's implicit
+                       state) to ~0.93-0.94 -- close enough that 3 seeds isn't a
+                       reliable read (raw HV isn't comparable run-to-run either,
+                       since ref_point is recomputed per run from the max front
+                       value across all five algorithms, so it shifts whenever
+                       QIEA's front does).
+         route2_199  : same pattern, ratio to NSGA-II/SPEA2 rose from ~0.38-0.46 to
+                       ~0.60-0.73.
+       Re-ran BOTH larger instances again at n-runs=10 (still n-gen=80/pop-size=80)
+       per section 9h's own noise warning, with per-pair Wilcoxon (not just vs
+       MOEA/D):
+         E-n101-k8   : QIEA vs NSGA-II ratio=1.001, p=0.9219 (statistically tied);
+                       QIEA vs SPEA2 ratio=0.939, p=0.7695 (tied). QIEA vs MOEA/D
+                       ratio=0.330, p=0.0020; QIEA vs RVEA ratio=0.438, p=0.0020
+                       (both still significantly behind). QIEA is NO LONGER the
+                       weakest of five here -- it ties NSGA-II/SPEA2 and only trails
+                       the two decomposition/reference-vector baselines.
+         route2_199  : QIEA vs NSGA-II ratio=0.919, p=0.4316 (tied); QIEA vs SPEA2
+                       ratio=0.834, p=0.1602 (tied); QIEA vs MOEA/D ratio=0.963,
+                       p=0.8457 (tied). QIEA vs RVEA ratio=0.659, p=0.0137
+                       (still significantly behind). QIEA now statistically ties
+                       THREE of the four baselines here, trailing only RVEA.
+       Conclusion: the mutation-rate scaling fix is the biggest single improvement
+       found across sections 8-10 -- it does not fully close the gap to RVEA (and,
+       on E-n101-k8, MOEA/D), but it eliminates the "QIEA is weakest of five"
+       finding that held since the very first pilot (section 6) on both larger
+       instances. The remaining structural gap is specifically against
+       decomposition/reference-vector-guided baselines, most consistently RVEA.
+
+    h) Open questions for next session: (i) neighborhood_size on route2_199 showed
+       a real, independent +30% gain in (e) with no clean size-based rule --
+       worth its own isolated investigation (does it need a different kind of
+       scaling than n_var, e.g. tied to H or to how spread the Tchebycheff
+       subproblems are at this n_obj/n_partitions?). (ii) RVEA (and MOEA/D on
+       E-n101-k8 specifically) remain significantly ahead of QIEA on both larger
+       instances -- next candidate levers are the diversity-stagnation boost
+       parameters (diversity_window, diversity_stagnation_tol, the 3x boost
+       multiplier) and H/n_partitions itself, none of which have been touched since
+       section 8b excluded n_partitions from tuning for fairness reasons. (iii) all
+       of sections 8-10's tuning has been on permutation-decode CVRP only --
+       continuous decode (ZDT/DTLZ/WFG) has not been revisited since run_synthetic.py
+       and may have analogous unscaled-parameter issues at higher dimensionality.
+       (iv) A-n32-k5 was not rerun at higher seed counts this session (unaffected by
+       this fix, reproduces section 9g bit-for-bit) -- if neighborhood_size tuning
+       is revisited there, use 10-15+ seeds given how noise-sensitive small-n_var
+       comparisons have proven to be (section 9e).
+
+11. neighborhood_size scaling investigation (2026-08-15)
+    Directly answers section 10h(i). New scripts: src/tune_qiea_neighborhood_scaling.py
+    (grid screen), src/tune_qiea_neighborhood_confirm.py (confirmatory run).
+
+    a) Screen: neighborhood_size grid {5,10,15,20,30,40,60,80,126} (126=H, i.e.
+       fully unrestricted mating across all subproblems), mutation_prob/theta bounds
+       left at their current auto-scaled defaults (not pinned), 5 seeds/config,
+       n_gen=80, n_partitions=5 (H=126, matched to MOEA/D+RVEA) across A-n32-k5,
+       E-n101-k8, route2_199. Per-instance best: A-n32-k5 nb=10 (default already
+       best -- hypervolume falls MONOTONICALLY as nb grows there), E-n101-k8
+       nb=126 (+50.4% HV, p=0.125), route2_199 nb=20 (+54.6% HV, p=0.0625).
+
+    b) This result already contradicts a size-tied formula on its face: E-n101-k8
+       (n_var=100) wants the neighborhood fully opened up (nb=126=H), while
+       route2_199 (n_var=198, the LARGER instance) wants only a modest nb=20 --
+       opposite of what any monotonic-in-n_var rule would predict. Since
+       n_partitions=5 is fixed across all three instances for baseline fairness
+       (section 8b), H=126 is identical everywhere tested, so "tied to H" cannot be
+       distinguished from "tied to n_var" within this instance set either --
+       neither hypothesis from section 10h(i) survives contact with the data.
+
+    c) Confirmatory run, 15 seeds, paired Wilcoxon, same auto-scaled mutation_prob/
+       theta bounds: A-n32-k5 unaffected (screen already picked default, nothing to
+       confirm). E-n101-k8 nb=126 vs default: +20.7% HV, Wilcoxon p=0.169 -- NOT
+       significant at 15 seeds despite a large point estimate; this is the second
+       time a screened neighborhood_size value for E-n101-k8 failed to hold up under
+       more seeds (section 10e's screened nb=50 there gave ~0% effect once
+       mutation_prob was fixed) -- E-n101-k8's apparent neighborhood_size
+       sensitivity looks like noise, not a reliable effect, across two independent
+       screens now. route2_199 nb=20 vs default: +34.8% HV, Wilcoxon p=0.018 --
+       SIGNIFICANT, and reproduces section 10e's independently-run +30.3% finding
+       for the same instance and same nb=20 value.
+
+    d) Conclusion: neighborhood_size is a real, reproducible, statistically
+       significant lever specifically on route2_199 (confirmed twice now, in two
+       separate sessions/scripts) but not a generalizable one -- no formula tied to
+       n_var, H, or any other measurable instance property explains why route2_199
+       benefits from a modest nb=20 while E-n101-k8's much larger apparent optimum
+       (nb=126) does not survive a higher-seed-count check, and A-n32-k5 is hurt by
+       any increase at all. Per the same fairness argument as sections 8b/9d/10e (no
+       per-instance hyperparameters -- would invalidate the fixed-algorithm
+       comparison against the baselines), neighborhood_size stays at its fixed
+       default of 10. qiea.py's module docstring updated with this finding; no code
+       defaults changed.
+
+    e) Open questions for next session (carried forward from section 10h, still
+       unresolved): (i) RVEA (and MOEA/D on E-n101-k8) remain significantly ahead
+       of QIEA on both larger instances -- next candidate levers are the
+       diversity-stagnation boost parameters (diversity_window,
+       diversity_stagnation_tol, the 3x boost multiplier) and H/n_partitions
+       itself. (ii) continuous decode (ZDT/DTLZ/WFG) has not been revisited for
+       analogous unscaled-parameter issues since run_synthetic.py. (iii) if
+       route2_199's real neighborhood_size=20 effect is ever worth chasing further,
+       a genuinely different angle is needed -- e.g. relating it to front geometry/
+       spread of the Tchebycheff subproblems for that specific instance rather than
+       any size parameter, since size-based hypotheses are now twice refuted.
+
+12. Diversity-stagnation-boost investigation (2026-08-15, same session as 11) --
+    the "ARGC" mechanism is found to be almost totally inert, and actively harmful
+    when forced to engage more.
+    Directly answers section 11e(i). New scripts: src/diag_qiea_stagnation.py and
+    src/diag_qiea_diversity_trace.py (diagnostics, no tuning), src/tune_qiea_stagnation_scaling.py
+    (grid screen), src/tune_qiea_stagnation_confirm.py (confirmatory run). qiea.py's
+    constructor also gained rotation_boost_multiplier=3.0 and mutation_boost_multiplier=5.0
+    as explicit params (previously hardcoded inline in rotation_angle/run) so they
+    could be swept the same way theta_min/theta_max/mutation_prob/neighborhood_size
+    were in sections 8-11 -- defaults preserve current behavior exactly, verified by
+    re-running qiea.py's own smoke test bit-for-bit unchanged.
+
+    a) Diagnostic first, before designing any sweep grid (this investigation started
+       from the section 11e(i) suggestion to tune diversity_window/diversity_stagnation_tol/
+       the boost multiplier -- but none of that is worth tuning if the mechanism never
+       fires in the first place). diag_qiea_stagnation.py monkeypatches
+       QIEA.rotation_angle (no source changes, just observes its return value) to
+       count boosted generations over 80-gen runs, 5 seeds/instance, at current
+       defaults: A-n32-k5 and E-n101-k8 both 0/80 boosted generations across all 5
+       seeds; route2_199 only 4/80 in 1 of 5 seeds (first trigger at gen 54). The
+       stagnation-escape branch -- the algorithm's namesake mechanism -- has been
+       dead code in essentially every result reported in sections 6-11.
+
+    b) diag_qiea_diversity_trace.py explains why: it prints the windowed diversity
+       range (max(recent)-min(recent) over the last diversity_window=10 generations,
+       exactly what diversity_stagnation_tol=1e-3 is compared against). That range's
+       floor across an 80-generation run is ~0.0017 (A-n32-k5), ~0.0029 (E-n101-k8),
+       ~0.0030 (route2_199) -- consistently ~2-3x ABOVE the tol=1e-3 threshold, on
+       all three instances, so the metric essentially never dips low enough to
+       trigger regardless of instance size. This is a calibration gap, not a
+       size-scaling issue like sections 9/10's -- the floor is roughly consistent
+       across n_var here, unlike theta_min/mutation_prob's clear n_var-dependence.
+
+    c) Screen (tune_qiea_stagnation_scaling.py): diversity_stagnation_tol grid at
+       1x/2x/3x/5x/8x/15x/30x the current default (0.001 to 0.03), diversity_window
+       and both boost multipliers held at their current defaults (10, 3.0, 5.0),
+       mutation_prob/theta bounds left at their auto-scaled defaults, 5 seeds/config,
+       n_gen=80, n_partitions=5, across A-n32-k5/E-n101-k8/route2_199. Result:
+       hypervolume decreases MONOTONICALLY as tol increases, on EVERY SINGLE one of
+       the three instances independently, with the current default ranking best in
+       all three (e.g. route2_199: 1.31e9 at default down to 7.44e8 at 30x -- roughly
+       halved). The rank-order pattern (default always best, then declining exactly
+       with tol) reproducing identically across three independent instances is very
+       unlikely under a true-null hypothesis on its own, before any per-comparison
+       significance test.
+
+    d) Confirm (tune_qiea_stagnation_confirm.py): 15 seeds, tol=0.002 (mildest
+       possible deviation, 2x default) vs default(0.001). Directionally worse on all
+       three instances (A-n32-k5 -4.0% p=0.176, E-n101-k8 -1.9% p=0.068, route2_199
+       -4.1% p=0.401) but none individually significant at 15 seeds -- expected for
+       the smallest step on the grid; the full-grid monotonic pattern in (c),
+       replicated identically across three independent instances, is the stronger
+       piece of evidence, not this single comparison.
+
+    e) Conclusion: the near-total inactivity of the stagnation-escape mechanism
+       under current defaults is NOT a bug to fix -- it is accidentally the optimal
+       operating point found so far. Deliberately making "ARGC" engage more often
+       makes QIEA strictly worse on every instance tested. This is a genuine, useful
+       negative result (the algorithm/paper's namesake mechanism contributes nothing
+       to any result reported to date and actively hurts if miscalibrated toward
+       firing more) rather than a tuning failure -- worth stating explicitly as a
+       limitation/ablation finding in the paper draft, not glossed over. No defaults
+       changed (the existing tol=1e-3, window=10, and 3x/5x multipliers already sit
+       at the best point found).
+
+    f) NOT tested this session, left open: whether a much MILDER boost magnitude
+       (e.g. 1.2x rotation / 1.5x mutation instead of 3x/5x) could turn triggering
+       into a net positive at a tol that lets it fire regularly -- (c)/(d) only
+       varied how OFTEN the current 3x/5x boost fires, not its magnitude, so
+       "triggering is bad" and "this particular boost's magnitude is bad whenever
+       triggered" are not yet distinguished. If this mechanism is revisited, that
+       magnitude sweep (fixed moderate tol, e.g. 0.003, sweeping
+       rotation_boost_multiplier/mutation_boost_multiplier jointly downward from
+       3.0/5.0 toward 1.0/1.0) is the natural next step, now straightforward since
+       both multipliers are exposed as constructor params.
+
+    g) Open questions carried forward: (i) H/n_partitions itself (section 11e(i)'s
+       other candidate lever) remains untouched -- still the most plausible
+       remaining lever for the RVEA/MOEA-D gap, though changing it for QIEA alone
+       would need the same fairness treatment as neighborhood_size (section 8b)
+       since baselines share n_partitions=5. (ii) continuous decode (ZDT/DTLZ/WFG)
+       still not revisited for any of sections 9-12's findings. (iii) the milder-
+       boost-magnitude question in (f).
+
+13. Boost-magnitude follow-up (2026-08-15, same session, answers section 12f) --
+    inconclusive: the 5-seed screen's clean answer did not survive a 15-seed confirm.
+    New scripts: src/tune_qiea_boost_magnitude.py (screen), src/tune_qiea_boost_magnitude_confirm.py
+    (confirm).
+
+    a) Design: fixed diversity_stagnation_tol=0.003 (confirmed in section 12c to
+       reliably make the mechanism engage), swept (rotation_boost_multiplier,
+       mutation_boost_multiplier) jointly from a no-op (1.0, 1.0) -- mathematically
+       identical to the boost never firing, regardless of tol, since
+       min(theta_max, base*1.0)==base and mutation_prob*1.0==mutation_prob -- up to
+       the current default (3.0, 5.0), 5 seeds/config, n_gen=80, n_partitions=5,
+       across all three instances. Note: hypervolumes from this script are NOT
+       directly comparable in absolute terms to section 12's tol-screen numbers --
+       each script computes its own reference point from only the configs it ran,
+       per run_experiment.py's existing convention -- comparisons are only valid
+       within a single script's own output.
+
+    b) 5-seed screen: route2_199 showed a clean monotonic decline in hypervolume as
+       multiplier magnitude grew (noop best, default worst, -22.9%, p=0.125). The
+       other two instances were noisier and non-monotonic in the middle of the grid,
+       but ALL THREE instances agreed on one thing: even the mildest tested boost,
+       (1.1, 1.2), already underperformed the no-op baseline. That looked like a
+       clean answer in favor of "any triggering is harmful, not just today's 3x/5x
+       magnitude."
+
+    c) 15-seed confirm of exactly that comparison (mild(1.1,1.2) vs noop(1.0,1.0),
+       same fixed tol=0.003) did NOT reproduce the 5-seed agreement: A-n32-k5 stayed
+       significantly worse (-5.1%, p=0.015 -- consistent with this instance's
+       already-documented extreme sensitivity to small hyperparameter perturbations,
+       see section 9e's theta_max clamping incident), E-n101-k8 was a non-significant
+       -1.1%, and route2_199's direction FLIPPED to a non-significant +4.5% (mild
+       boost slightly helped there, opposite of the screen's sign). This is the same
+       lesson as section 12d's mild-tol confirm: small-seed screens on the smallest
+       grid step are not reliable, and this particular "all three agree" pattern was
+       mostly noise.
+
+    d) Conclusion: magnitude vs. frequency of the stagnation-escape trigger could NOT
+       be cleanly separated with the evidence gathered. What remains solid is
+       section 12's original finding (raising trigger frequency at the CURRENT 3x/5x
+       magnitude monotonically hurts hypervolume, replicated identically across all
+       three instances over a 7-point grid) -- that is a much stronger and more
+       robust result than anything found in this follow-up, because it varied one
+       thing (tol) across a wide grid rather than trying to isolate a second
+       dimension (magnitude) with only 5-15 seeds. No defaults changed. Whether a
+       genuinely different magnitude/tol combination could turn this mechanism into
+       a net positive remains open and would need a properly powered joint
+       tol x magnitude sweep (more seeds, wider grid) to resolve -- not attempted
+       further this session, given how noise-dominated the signal already proved to
+       be at this seed count.
+
+    e) Open questions carried forward, unchanged from section 12g: (i) H/n_partitions
+       as the main remaining lever for the RVEA/MOEA-D gap. (ii) continuous decode
+       (ZDT/DTLZ/WFG) still unrevisited for sections 9-13's findings. (iii) a
+       properly powered joint tol x magnitude sweep on the stagnation-escape
+       mechanism, if it's worth pursuing further at all given how small and noisy
+       its effects have proven relative to the clearer, already-shipped findings in
+       sections 9-10.
+
+================================================================================
+14. Full-scale campaign (2026-08-17): QIEA is weakest of five on ALL SEVEN
+    instances -- generation-trace diagnostic finds an early hard plateau, not a
+    parameter-tuning problem. This directly answers section 7's deferred item
+    (the full 30-run x 500-1000-gen statistical campaign) and reframes sections
+    8-13's tuning work.
+================================================================================
+
+    a) Ran section 7's deferred full campaign: run_experiment.py on all 7
+       instances (route1_334, route2_199, route3_202, A-n32-k5, A-n33-k5,
+       E-n101-k8, M-n200-k16), n-gen=500, n-runs=30, pop-size=80, parallelized
+       one process per instance (7 concurrent, 20 physical cores available;
+       BLAS threading pinned to 1 thread/process to avoid oversubscription).
+       Wall-clock ~1 hour (vs ~4.2h if run serially), estimated from a 100-gen
+       timing probe beforehand. Prior pilot-scale results/ contents backed up
+       before overwriting.
+
+    b) Result: QIEA is the WORST of all five algorithms on EVERY SINGLE
+       instance, by a wide margin (QIEA/best-baseline hypervolume ratio 0.17-0.45
+       across the 7 instances; Friedman p << 0.05 on all 7; Wilcoxon MOEA/D-vs-
+       QIEA p ~ 1e-9 on 6 of 7, p ~ 1e-6 on the 7th). This includes A-n32-k5,
+       where the 2026-08-13 pilot (section 9g/10g, 5 seeds, n-gen=80) reported
+       QIEA beating NSGA-II and SPEA2. The section 10g pilot narrative ("mutation-
+       rate scaling eliminated QIEA being weakest of five" on the two larger
+       instances, at 3-10 seeds / n-gen=80) does NOT hold at the paper's actual
+       target scale -- it was an artifact of the short generation budget, not a
+       real fix. Per-instance hypervolume ranking (best -> worst):
+         A-n32-k5   : SPEA2 > NSGA-II > RVEA   > MOEA/D > QIEA (ratio 0.38)
+         A-n33-k5   : SPEA2 > NSGA-II > RVEA   > MOEA/D > QIEA (ratio 0.38)
+         E-n101-k8  : RVEA  > MOEA/D  > SPEA2  > NSGA-II> QIEA (ratio 0.18)
+         M-n200-k16 : MOEA/D> RVEA    > SPEA2  > NSGA-II> QIEA (ratio 0.17)
+         route1_334 : MOEA/D> RVEA    > SPEA2  > NSGA-II> QIEA (ratio 0.45)
+         route2_199 : MOEA/D> RVEA    > SPEA2  > NSGA-II> QIEA (ratio 0.37)
+         route3_202 : RVEA  > MOEA/D  > SPEA2  > NSGA-II> QIEA (ratio 0.33)
+
+    c) Diagnostic (no tuning, no source changes): new script
+       src/diag_qiea_generation_trace.py. Traces hypervolume every 10 generations
+       for QIEA and all four baselines over a full 500-generation run, using ONE
+       fixed reference point per (instance, seed) run -- 1.1x the nadir of the
+       initial random population, shared across every algorithm and checkpoint in
+       that run so the trajectory is internally comparable (NOT the same
+       ref_point convention as run_experiment.py; absolute numbers here are only
+       meaningful within one run, not against other scripts' HV values). Run on
+       A-n32-k5 and route2_199, seed=1, n_gen=500.
+
+    d) Finding: QIEA hits a hard hypervolume plateau early and never recovers,
+       while every baseline keeps climbing steadily all the way to generation
+       500.
+         A-n32-k5:   QIEA is actually competitive through ~gen 30-60 (2nd/3rd of
+                     five), then FREEZES at gen 60 -- hypervolume is bit-for-bit
+                     identical (2.265484e12) for the remaining 440 generations --
+                     while NSGA-II/SPEA2/RVEA climb another ~2.5-3x past that
+                     point (final: NSGA-II 6.05e12, SPEA2 6.41e12, RVEA 6.06e12,
+                     MOEA/D 4.96e12 vs QIEA's frozen 2.27e12).
+         route2_199: same shape, plateau starts ~gen 440-450 (final QIEA 5.12e9
+                     vs MOEA/D 1.40e10, RVEA 1.44e10, SPEA2 1.24e10, NSGA-II
+                     1.01e10 -- QIEA under half of the next-worst baseline).
+       This is a structural/mechanistic failure, not a parameter-tuning gap:
+       sections 8-10's auto-scaled theta_min/theta_max/mutation_prob formulas
+       were already active during this trace and did not prevent the plateau.
+
+    e) Root-cause hypothesis: QIEA's population is fixed at H individuals (one
+       per MOEA/D subproblem). Once every individual converges toward its
+       neighborhood's best guide, there is no remaining source of novelty: the
+       rotation step has decayed toward theta_min by construction, and -- per
+       section 12's diagnostic -- the diversity-stagnation escape ("ARGC", the
+       algorithm's namesake mechanism) essentially never fires under its current
+       threshold (0/80 boosted generations on A-n32-k5 in that 80-gen check).
+       With no escape actually engaging, the population goes fully static and the
+       archive stops accumulating new non-dominated points regardless of how many
+       generations remain -- explaining why a 500-gen budget helps every
+       population/reference-vector-based baseline but does nothing extra for
+       QIEA past its plateau point.
+
+    f) This reframes section 12/13's conclusion. Section 12 found that forcing
+       ARGC to trigger more OFTEN (via a looser diversity_stagnation_tol) hurt
+       hypervolume, monotonically, on all three instances tested -- but that
+       screen and its confirm run were both done at n_gen=80, i.e. entirely
+       BEFORE (A-n32-k5) or well before (route2_199, per this section's own
+       plateau point) QIEA has actually stalled. "Escaping stagnation is bad"
+       and "escaping stagnation is bad once the population has already fully
+       converged, but necessary once it has" are different claims, and only the
+       first was tested. Whether a working escape mechanism, engaged AFTER the
+       plateau point specifically (rather than judged by an 80-generation
+       window), reverses this finding is the open, high-priority question -- see
+       (g).
+
+    g) Open questions / next steps (highest priority now, supersedes section
+       12g/13e's ranking of H/n_partitions as the top lever): (i) design and test
+       a diversity-reinjection or restart mechanism (e.g. periodic random
+       re-seeding of a fraction of the H subproblems, or a much more aggressive
+       stagnation-escape specifically gated on generations-since-plateau rather
+       than a fixed short window) and check whether it lets QIEA keep improving
+       past its current freeze point on both A-n32-k5 and route2_199. (ii) run
+       the same generation-trace diagnostic on the other 5 instances (only 2 of 7
+       traced so far) to confirm the plateau generalizes. (iii) H/n_partitions
+       and continuous-decode (ZDT/DTLZ/WFG) revisits from section 12g/13e remain
+       open but are now secondary to (i) -- a structural stall that a longer
+       budget cannot fix is a bigger problem for the paper's core claim than
+       further parameter tuning. (iv) results/*_indicators.csv and
+       *_fronts.npz now hold the full 30-run/n-gen=500 campaign data (this is the
+       paper's actual target-scale numbers for these 7 instances, no longer
+       pilot-scale) -- the pre-campaign pilot results were backed up separately
+       beforehand and are not part of the committed repo state.
+
+================================================================================
+15. Plateau fix (2026-08-17, same session as 14): plateau-gated diversity
+    reinjection ("restart") -- the largest, most general improvement found in
+    this entire tuning investigation, shipped as the new QIEA default. Closes
+    section 14g(i). New scripts: src/tune_qiea_restart.py (first grid screen),
+    src/tune_qiea_restart_finegrid.py (boundary re-screen), src/tune_qiea_restart_confirm.py
+    (20-seed confirm, all 7 instances). qiea.py gained restart_patience/
+    restart_fraction constructor params and a QIEA._do_restart method.
+================================================================================
+
+    a) Mechanism: track generations-since-the-archive-last-grew. Once that count
+       reaches restart_patience, reseed a restart_fraction of the H subproblems'
+       theta to fresh uniform-random values in [0, pi/2] (immediately re-evaluated
+       and folded into z_ideal), leaving every other subproblem untouched --
+       elitist, unlike a full population restart. Verified the restart-disabled
+       path (restart_patience=None) reproduces qiea.py's own smoke test
+       bit-for-bit identical to pre-change behavior before any sweep was run.
+
+    b) First grid screen (tune_qiea_restart.py): restart_patience in
+       {20,50,100,200} x restart_fraction in {0.1,0.3,0.5}, plus a restart-
+       disabled control, 5 seeds/config, n_gen=500 (the paper's actual budget,
+       not the n-gen=80 pilots sections 8-13 tuned on), n_partitions=5, across
+       A-n32-k5/E-n101-k8/route2_199 (the two plateaued instances from section 14
+       plus a third for coverage). Result: EVERY SINGLE one of the 12 restart
+       configs beat the control on EVERY instance (+4% to +59% hypervolume) --
+       the opposite of section 12's diversity_stagnation_tol screen, where
+       triggering the OLD escape mechanism more often was uniformly worse.
+       restart_patience=20 (the shortest value on this grid) ranked in the top 2
+       on all three instances -- an edge-of-grid result needing a boundary check,
+       same situation as section 8c's theta_min range extension.
+
+    c) Boundary re-screen (tune_qiea_restart_finegrid.py): restart_patience in
+       {5,10,15,20,30,40} x restart_fraction in {0.3,0.5}, same setup. Still
+       every config beat control on every instance, but the per-instance optimum
+       shifted and disagreed: A-n32-k5 best at patience=10 (+45.4%), E-n101-k8
+       best at patience=5 (+70.0%), route2_199 best at patience=15 (+69.6%) -- no
+       clean size-based (or any other measurable-property-based) formula, the
+       same non-generalizable-optimum situation section 11 found for
+       neighborhood_size. restart_fraction=0.5 edged out 0.3 fairly consistently
+       among top performers. patience=10/fraction=0.5 was chosen as the single
+       most robust non-per-instance candidate by average rank (top-3 on all
+       three instances screened, never an outlier) -- same fairness rationale as
+       every other shipped default in this file (sections 8b/9d/10e/11d).
+
+    d) Confirm (tune_qiea_restart_confirm.py): restart_patience=10/
+       restart_fraction=0.5 vs restart-disabled control, 20 seeds, paired
+       Wilcoxon, extended to ALL SEVEN CVRP instances (only 3 had been screened).
+       Significant on every single one:
+         A-n32-k5   +29.7% p=0.0037    A-n33-k5   +32.0% p=0.00013
+         E-n101-k8  +66.0% p=1.9e-6    M-n200-k16 +35.4% p=0.00026
+         route1_334 +27.7% p=0.00021   route2_199 +36.1% p=6.3e-5
+         route3_202 +40.4% p=1.9e-6
+       This is the largest and most universally reproducible effect found across
+       sections 8-15 combined -- every other shipped fix (theta scaling, mutation
+       scaling) was significant on at most 1-2 of 3 instances tested and had
+       real per-instance exceptions; this one is significant, same direction, on
+       all 7 with no exceptions. Shipped as the new default (restart_patience:
+       None -> 10, restart_fraction: 0.3 -> 0.5); qiea.py's module docstring
+       updated with the full rationale.
+
+    e) Post-fix full re-run: run_experiment.py re-executed at the SAME protocol
+       as section 14's campaign (30 runs, n-gen=500, pop-size=80, all 7
+       instances; pre-fix results/ backed up separately first). QIEA's
+       hypervolume ratio to the best baseline improved substantially on every
+       instance, but QIEA remains last of five on every instance still:
+         A-n32-k5   : 0.38 -> 0.57 (best: RVEA)
+         A-n33-k5   : 0.38 -> 0.54 (best: SPEA2)
+         E-n101-k8  : 0.18 -> 0.30 (best: RVEA)
+         M-n200-k16 : 0.17 -> 0.33 (best: MOEA/D)
+         route1_334 : 0.45 -> 0.58 (best: MOEA/D)
+         route2_199 : 0.37 -> 0.58 (best: RVEA)
+         route3_202 : 0.33 -> 0.49 (best: RVEA)
+       Per-pair Wilcoxon (QIEA vs each individual baseline) on the three
+       instances checked: route1_334 is the one genuine ranking change -- QIEA
+       vs NSGA-II is now STATISTICALLY TIED (ratio=0.940, p=0.237), the first
+       time in this project's history QIEA has tied any baseline at the full
+       30-run/n-gen=500 scale. Every other pair on every instance checked
+       (route1_334 vs SPEA2/MOEA/D/RVEA; route2_199 and A-n32-k5 vs all four)
+       remains significantly in the baseline's favor (p < 0.002 in every case).
+
+    f) Conclusion: the plateau fix is real, general, large, and the correct
+       explanation for section 14's finding -- it is not a tuning trick, it
+       fixes an actual mechanism failure (the namesake "ARGC" escape not
+       engaging). But fixing the plateau closes roughly half the ratio gap to
+       the best baseline on average, not the gap itself -- QIEA still loses to
+       all four classical baselines on 6 of 7 instances, and ties only the
+       weakest baseline (NSGA-II) on exactly one (route1_334). The remaining gap
+       is therefore NOT explained by the plateau/stagnation-escape failure alone
+       -- something else about QIEA's per-generation search efficiency (most
+       likely candidate, per section 14g(iii) carried forward: H/n_partitions,
+       still untouched) accounts for the rest. This should be reported in the
+       paper as exactly what it is: a genuine, large, well-validated ablation
+       finding (the ARGC mechanism, once actually made to work, provides a
+       real and necessary benefit) that improves but does not resolve QIEA's
+       competitiveness gap against decomposition/reference-vector baselines.
+
+    g) Open questions for next session: (i) H/n_partitions remains the most
+       plausible remaining lever (carried forward from sections 12g/13e/14g) --
+       now higher-priority than ever, since the plateau explanation is fixed and
+       ruled out as the FULL explanation. Must vary it for the baselines too
+       (fairness, section 8b). (ii) DONE (same session): completed the
+       per-individual-baseline Wilcoxon check on all 7 instances (28 pairs
+       total, up from 3 instances/12 pairs) -- results in (h) below. (iii)
+       continuous decode (ZDT/DTLZ/WFG) has never been checked for an analogous
+       plateau -- still open, carried forward from section 14g. (iv) the
+       restart mechanism adds some runtime overhead (larger/more-actively-
+       pruned archives) -- post-fix run_experiment.py runs took noticeably
+       longer wall-clock than section 14's pre-fix campaign; not quantified
+       precisely, worth measuring if runtime becomes a reported metric in the
+       paper.
+
+    h) Full per-pair Wilcoxon (QIEA vs each of the 4 baselines individually, all
+       7 instances, closing (g-ii) above): of 28 total pairwise comparisons,
+       exactly ONE is a statistical tie -- QIEA vs NSGA-II on route1_334
+       (already reported in (e)). Every other pair, on every instance, remains
+       significant in the baseline's favor, including the closest non-tie found:
+       QIEA vs NSGA-II on M-n200-k16 (ratio=0.896, p=0.0017 -- close in
+       magnitude but still clearly significant at this seed count). QIEA vs
+       MOEA/D and QIEA vs RVEA are significant everywhere with ratios mostly in
+       the 0.3-0.65 range, confirming these two remain the consistently hardest
+       baselines to catch, exactly as section 10g/13f already flagged before
+       the plateau fix -- the plateau fix narrowed the gap in absolute terms
+       but did not change WHICH baselines are hardest to beat.

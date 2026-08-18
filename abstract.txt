@@ -1,0 +1,12 @@
+Abstract Upload
+Please upload a PDF file using the following format:
+
+2 page abstract (incl. figures and references)
+Title and authors
+Background and objectives
+Methodology
+Key results
+Significance and impact
+3-5 keywords
+References 
+Acknowledgements

@@ -4,6 +4,50 @@ Working title: "A Hybrid Quantum-Inspired Evolutionary Algorithm with Adaptive R
 
 Gap you're filling: The Soft Computing (2025) continuous-space QIEA paper and the King (2025/2026) quantum-annealing MOO papers both stay in synthetic benchmark territory or 2–3 objective cases. Neither validates on a real many-objective (4+) routing problem. That's your opening — extend qubit-encoded MOO to a real-world 4–5 objective VRP (distance, time, cost, emissions, workload balance) using your FADSE framework as the implementation backbone.
 
+================================================================================
+SUBMISSION DRAFT (2026-08-18): revised title + abstract, proposed based on the
+section 14-15 findings (QIEA loses to 3 of 4 baselines on 6 of 7 instances at
+full scale; the ARGC plateau-fix is the strongest validated result). The
+original working title above claims a performance win the current results
+don't support -- this draft reframes around the diagnosis/correction finding
+instead. NOT YET FINAL -- needs the user's review/edit before submission.
+================================================================================
+
+Revised title:
+"A Hybrid Quantum-Inspired Evolutionary Algorithm with Adaptive Rotation-Gate
+Control for Many-Objective Vehicle Routing: Diagnosis, Correction, and
+Comparative Evaluation"
+
+Draft abstract:
+Quantum-inspired evolutionary algorithms (QIEAs) have shown promise on
+continuous multi-objective benchmarks and low-dimensional (2-3 objective)
+routing problems, but their behavior on real-world many-objective (4+) vehicle
+routing remains largely unvalidated. We propose HQIEA-ARGC, a hybrid
+quantum-inspired evolutionary algorithm combining a qubit-angle chromosome with
+a repair-free permutation decode, MOEA/D-style Tchebycheff decomposition for
+many-objective scalability, and an adaptive rotation-gate control (ARGC)
+mechanism designed to escape diversity stagnation. We formulate urban
+waste-collection routing in Sibiu, Romania as a 5-objective capacitated VRP
+(distance, time, cost, emissions, workload balance) and evaluate HQIEA-ARGC
+against NSGA-II, SPEA2, MOEA/D, and RVEA on standard synthetic benchmarks
+(ZDT, DTLZ, WFG), CVRPLIB instances, and real Sibiu routing data, using
+hypervolume, spacing, spread, and Wilcoxon/Friedman tests over 30 independent
+runs per instance.
+
+A generation-wise diagnostic shows that the original ARGC mechanism rarely
+engages under realistic convergence conditions, causing the population to
+stagnate long before the generation budget is exhausted. We correct this with
+a plateau-gated diversity-reinjection scheme that produces large,
+statistically significant hypervolume gains (up to +66%) across all seven
+real-world instances -- the most consistent improvement in our full tuning
+study. Even after this correction, HQIEA-ARGC still trails decomposition- and
+reference-vector-guided baselines (MOEA/D, RVEA) on most instances, matching
+only NSGA-II on one. We report this not as a headline win but as a validated
+ablation finding: the qubit-encoded representation and a working
+stagnation-escape mechanism are necessary but not sufficient for
+competitiveness at scale, and we identify population/decomposition
+granularity as the most likely remaining lever.
+
 Methodology:
 
 Problem formulation — formalize Sibiu waste collection as a many-objective CVRP (Capacitated VRP) with 4+ conflicting objectives.

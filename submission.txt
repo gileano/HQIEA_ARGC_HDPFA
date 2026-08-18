@@ -1,0 +1,44 @@
+Conference: European Quantum Technologies Conference (EQTC) 2026
+Location: Dublin, Ireland
+Source: https://www.eqtc2026.eu/submissions
+
+Track (this submission): Science & Technology Track
+  (other track offered: Skills & Workforce Track)
+
+Deadlines:
+  Call opens               : 2026-05-01
+  Submission deadline       : 2026-09-11   (both tracks)
+  Acceptance notification   : 2026-09-23   (both tracks)
+  Author confirmation due   : 2026-09-28   (both tracks)
+
+Submission format: 2-page abstract (incl. figures and references), as a PDF, covering:
+  - Title and authors
+  - Background and objectives
+  - Methodology
+  - Key results
+  - Significance and impact
+  - 3-5 keywords
+  - References
+  - Acknowledgements
+  (matches abstract.txt in this repo; note the drafted abstract in submission/
+  currently omits Acknowledgements per the author's instruction)
+
+Topics welcomed: Quantum Computing & Simulation, Quantum Communication, Quantum
+  Sensing & Metrology, Skills & Workforce development, Emerging Directions
+  (Quantum-for-AI, Quantum-for-HPC), Enabling Technologies & Systems Engineering.
+
+Eligible submitters: early-career researchers, PhD students, established
+  researchers, scientists from research organizations, educators;
+  interdisciplinary/cross-sector submissions encouraged.
+
+Publication: accepted abstracts presented as parallel sessions and/or posters;
+  published in a special edition of APL Quantum (AIP Publishing).
+
+Submission portal: Abbey Events Air system, separate submission link per track
+  (see conference page above for the current links).
+
+Deliverable status: draft PDF/DOCX ready at submission/HQIEA_ARGC_Abstract.docx
+  (built from submission/build_abstract.py) -- currently a DOCX; still needs
+  export to PDF for the actual upload (submission/HQIEA_ARGC_Abstract.pdf
+  already exists from the verification render, re-generate it if the docx
+  changes before submitting).

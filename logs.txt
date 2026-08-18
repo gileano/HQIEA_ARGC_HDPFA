@@ -919,3 +919,96 @@ IMPLEMENTATION LOG — Paper 2 (updated 2026-08-12)
        baselines to catch, exactly as section 10g/13f already flagged before
        the plateau fix -- the plateau fix narrowed the gap in absolute terms
        but did not change WHICH baselines are hardest to beat.
+
+================================================================================
+16. H/n_partitions scaling investigation (2026-08-18) -- the last remaining
+    top-priority lever (section 15g-i) is RULED OUT: a promising-looking
+    5-seed screen did not survive a 15-seed confirm. New scripts:
+    src/tune_h_partitions_screen.py, src/tune_h_partitions_confirm.py.
+================================================================================
+
+    a) Motivation: H (population size, set via n_partitions through Das-Dennis
+       reference directions) is currently identical for QIEA/MOEA-D/RVEA
+       (n_partitions=5 -> H=126, matched for fairness since section 8b) but
+       NOT for NSGA-II/SPEA2, which use a separately-set pop_size (80-100) --
+       a smaller, previously-flagged mismatch (section 8b) never addressed.
+       This investigation varies n_partitions for ALL FIVE algorithms
+       together at each grid point (NSGA-II/SPEA2's pop_size set to H too),
+       closing that mismatch and directly testing whether population size
+       explains QIEA's remaining gap to MOEA/D and RVEA.
+
+    b) Screen: n_partitions in {3,4,5,6,7,8} -> H in {35,70,126,210,330,495},
+       5 seeds/config, n_gen=500 (the paper's actual budget -- per section
+       15b's lesson, population-size effects are structural and must be
+       evaluated at the real generation budget), on A-n32-k5/E-n101-k8/
+       route2_199. A timing probe beforehand confirmed cost scales roughly
+       linearly with H and stays cheap even at H=495/n_gen=500 (tens of
+       seconds per run) -- not a compute-budget constraint here. Result was
+       noisy and non-monotonic, unlike the restart screen (section 15b) where
+       EVERY config beat control on every instance: A-n32-k5's ratio-to-best
+       climbed fairly steadily with H (best at H=495, the top of the grid --
+       an edge-of-grid result, same situation as section 8c's theta_min
+       range), but E-n101-k8 and route2_199 both peaked around H=210-330 and
+       fell back down at H=495 -- H=495 was actually WORSE than the current
+       default (H=126) on E-n101-k8 (0.250 vs 0.323).
+
+    c) Candidate selection: ranked each grid point's qiea_ratio_to_best per
+       instance and averaged the rank across the three instances (same
+       "most robust, never an outlier" logic used to pick restart_patience=10
+       in section 15c, since no single H both wins everywhere and isn't an
+       outlier). n_partitions=7 (H=330) had the best average rank (1.3):
+       never worse than 2nd on any of the three instances, and outright best
+       on two of three. H=495 (best in isolation on A-n32-k5) ranked worse
+       overall (3.3) because of its E-n101-k8 regression -- the same "great
+       on one instance, does not generalize" failure mode that kept
+       neighborhood_size out of the shipped defaults (section 11).
+
+    d) Confirm (tune_h_partitions_confirm.py): n_partitions=7 (H=330) vs the
+       current default n_partitions=5 (H=126), 15 seeds, paired per-seed on
+       QIEA's hypervolume-ratio-to-best-baseline (not raw hypervolume, since
+       changing population size changes every algorithm's hypervolume, not
+       just QIEA's), same three instances. Result reversed the screen
+       entirely -- all three instances trended NEGATIVE, none significant:
+         A-n32-k5    -1.5%  Wilcoxon p=0.85
+         E-n101-k8   -0.7%  Wilcoxon p=0.89
+         route2_199 -10.7%  Wilcoxon p=0.39
+       The apparent wins on E-n101-k8 (+4.8% in the screen) and route2_199
+       (+15.1% in the screen) both evaporated and flipped sign at 3x the
+       seed count -- the exact same lesson as section 12d's mild-tol confirm
+       and section 13c's mild-boost confirm: small-seed screens on a noisy,
+       non-monotonic grid are not reliable, and the "most robust candidate"
+       selection heuristic (which worked for restart_patience, a genuinely
+       robust effect) does not rescue a candidate when the underlying effect
+       was noise to begin with.
+
+    e) Conclusion: H/n_partitions is RULED OUT as an explanation for QIEA's
+       remaining gap to MOEA/D and RVEA. This closes section 15g-i, which had
+       flagged it as "the most plausible remaining lever" -- it was the
+       logical next thing to try (population size is the one major structural
+       axis sections 8-15 hadn't touched), but the evidence says scaling the
+       whole field's population up or down together does not change QIEA's
+       relative standing. No code defaults changed (n_partitions stays at 5
+       for QIEA/MOEA-D/RVEA; NSGA-II/SPEA2 keep their separate pop_size CLI
+       argument in run_experiment.py -- the mismatch noted in (a) is
+       therefore still present but is now known not to matter for QIEA's
+       ranking, so fixing it is no longer a priority). qiea.py's module
+       docstring updated with this finding.
+
+    f) What this leaves open: with the plateau (section 15), rotation-step
+       scaling (section 9), mutation-rate scaling (section 10), and now
+       population size (this section) all investigated, the remaining gap to
+       MOEA/D and RVEA specifically has no identified mechanistic cause left
+       among the parameters this project has controlled for fairness. Open
+       questions carried forward, now the top priorities:
+       (i) continuous decode (ZDT/DTLZ/WFG) has never been checked for an
+       analogous plateau or any of sections 9-16's other findings -- still
+       fully open, carried forward from section 15g-iii.
+       (ii) the restart mechanism's runtime overhead was never quantified
+       (section 15g-iv) -- still open.
+       (iii) no remaining hyperparameter lever is currently flagged as
+       "most plausible" -- the next investigation should probably look at
+       something structurally different from a hyperparameter sweep, e.g.
+       whether MOEA/D's/RVEA's use of reference-vector-guided selection
+       itself (as opposed to QIEA's Tchebycheff-neighborhood mating) is the
+       actual mechanistic difference, rather than any tunable knob in the
+       current QIEA design.

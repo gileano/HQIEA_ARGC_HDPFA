@@ -1,0 +1,2 @@
+instance,control_n_partitions,candidate_n_partitions,ratio_control_mean,ratio_control_std,ratio_candidate_mean,ratio_candidate_std,pct_change,wilcoxon_stat,wilcoxon_p
+E-n101-k8,5,7,0.30549456753856596,0.06382914377156348,0.30324608788503576,0.06675765673648434,-0.7360129745175747,57.0,0.890380859375

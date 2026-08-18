@@ -176,11 +176,24 @@ change: on route1_334, QIEA is now statistically **tied with NSGA-II** (p=0.237)
 first tie against any baseline at full scale. Every other pairwise comparison checked so
 far remains significantly in the baseline's favor (p < 0.002).
 
-**Current top priority:** the remaining gap is not explained by the plateau/
-stagnation-escape failure alone — `H`/`n_partitions` (QIEA's population size, currently
-fixed at the same value as MOEA/D's and RVEA's for fairness) is the most plausible
-remaining lever and has not been touched. See `logs.txt` section 15g for the full
-open-questions list.
+**`H`/`n_partitions` ruled out (2026-08-18):** the remaining gap is not explained by the
+plateau/stagnation-escape failure alone, so population size (`H`/`n_partitions`, fixed
+at the same value as MOEA/D's and RVEA's for fairness) was the next candidate lever. A
+5-seed screen across `n_partitions` 3–8 (H = 35–495, applied to all five algorithms
+together) looked promising but was noisy and non-monotonic; the most robust-looking
+candidate (`n_partitions=7`, H=330) reversed sign on all three instances tested under a
+15-seed confirm (all non-significant, all trending *negative*: A-n32-k5 −1.5% p=0.85,
+E-n101-k8 −0.7% p=0.89, route2_199 −10.7% p=0.39). No default changed — population size
+does not explain QIEA's remaining gap to MOEA/D and RVEA. See `logs.txt` section 16.
+
+**Current top priority:** with the plateau, rotation-step scaling, mutation-rate
+scaling, and now population size all investigated and ruled in/out, no remaining
+hyperparameter lever is flagged as "most plausible." The next investigation should
+likely look at something structurally different — e.g. whether MOEA/D's/RVEA's
+reference-vector-guided selection itself (vs. QIEA's Tchebycheff-neighborhood mating)
+is the actual mechanistic difference — rather than another tunable knob. Continuous
+decode (ZDT/DTLZ/WFG) also still hasn't been checked for an analogous plateau. See
+`logs.txt` section 16f for the full open-questions list.
 
 <details>
 <summary>Earlier tuning passes (2026-08-12/13, superseded by the finding above)</summary>

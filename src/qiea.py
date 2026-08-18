@@ -148,6 +148,18 @@ effect found across this entire tuning investigation (sections 8-14 combined).
 Shipped as the new default (previously restart_patience=None, i.e. disabled).
 Continuous decode (ZDT/DTLZ/WFG) has not been checked for an analogous plateau --
 open, see logs.txt section 15.
+
+H/n_partitions (population size) ruled out as a lever for QIEA's remaining gap to
+MOEA/D and RVEA (logs.txt section 16). n_partitions is currently identical for
+QIEA/MOEA-D/RVEA (=5, H=126) for baseline fairness (section 8b). A screen varying
+n_partitions in {3..8} (H in 35-495) for all five algorithms together looked
+promising but was noisy and non-monotonic -- the best-by-average-rank candidate
+(n_partitions=7, H=330) reversed sign on all three instances tested under a
+15-seed confirm (paired Wilcoxon on QIEA's hypervolume-ratio-to-best-baseline:
+A-n32-k5 -1.5% p=0.85, E-n101-k8 -0.7% p=0.89, route2_199 -10.7% p=0.39) -- the
+same "screen noise, not a real effect" pattern as section 12d/13c. No default
+changed; population size does not explain QIEA's relative standing against
+MOEA/D and RVEA.
 """
 import numpy as np
 

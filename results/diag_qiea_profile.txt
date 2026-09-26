@@ -1,0 +1,99 @@
+
+=== A-n32-k5 (n_var=31, n_gen=500, 3 seeds) ===
+  seed 1: total    7.62s  evaluate    2.23s  archive   0.17s  other   5.23s  evals 66150  restarts 48  |archive| 6
+  seed 2: total    7.68s  evaluate    2.25s  archive   0.17s  other   5.25s  evals 66087  restarts 47  |archive| 4
+  seed 3: total    7.75s  evaluate    2.27s  archive   0.18s  other   5.29s  evals 65898  restarts 44  |archive| 6
+
+  cProfile (seed 1, sorted by own time -- ranking only, shares inflated):
+         17751787 function calls in 11.260 seconds
+
+   Ordered by: internal time
+   List reduced from 101 to 15 due to restriction <15>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+  1890000    3.056    0.000    5.860    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/qiea.py:167(tchebycheff)
+    66150    1.614    0.000    2.390    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/problem.py:81(evaluate_routes)
+  1890549    1.101    0.000    1.946    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py:66(_wrapreduction)
+        1    0.961    0.961   11.260   11.260 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/qiea.py:287(run)
+  2025901    0.758    0.000    0.758    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+  1890000    0.745    0.000    2.689    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py:3049(max)
+    66150    0.445    0.000    0.608    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/problem.py:38(split_routes)
+    66150    0.333    0.000    0.547    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/.venv/lib/python3.12/site-packages/numpy/_core/_methods.py:148(_var)
+  2715155    0.193    0.000    0.193    0.000 {method 'append' of 'list' objects}
+  1892052    0.181    0.000    0.181    0.000 {method 'items' of 'dict' objects}
+    63000    0.161    0.000    0.178    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/qiea.py:280(quantum_mutation)
+    66150    0.137    0.000    0.745    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/problem.py:76(decode)
+    63000    0.135    0.000    0.141    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/qiea.py:275(quantum_crossover)
+    63000    0.131    0.000    0.283    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/qiea.py:271(rotate_toward)
+  1890000    0.116    0.000    0.116    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py:3044(_max_dispatcher)
+
+
+
+
+=== route2_199 (n_var=198, n_gen=500, 3 seeds) ===
+  seed 1: total   16.11s  evaluate   10.12s  archive   0.34s  other   5.66s  evals 66024  restarts 46  |archive| 17
+  seed 2: total   16.17s  evaluate   10.16s  archive   0.34s  other   5.68s  evals 66087  restarts 47  |archive| 15
+  seed 3: total   16.23s  evaluate   10.19s  archive   0.34s  other   5.69s  evals 66024  restarts 46  |archive| 19
+
+  cProfile (seed 1, sorted by own time -- ranking only, shares inflated):
+         28901003 function calls in 21.270 seconds
+
+   Ordered by: internal time
+   List reduced from 101 to 15 due to restriction <15>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+    66024    7.813    0.000    8.640    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/problem.py:81(evaluate_routes)
+  1890000    3.089    0.000    5.937    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/qiea.py:167(tchebycheff)
+    66024    2.465    0.000    3.331    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/problem.py:38(split_routes)
+  1890547    1.125    0.000    1.982    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py:66(_wrapreduction)
+        1    0.985    0.985   21.270   21.270 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/qiea.py:287(run)
+ 13868045    0.903    0.000    0.903    0.000 {method 'append' of 'list' objects}
+  2025645    0.797    0.000    0.797    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+  1890000    0.752    0.000    2.730    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py:3049(max)
+    66024    0.560    0.000    3.891    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/problem.py:76(decode)
+    66024    0.352    0.000    0.579    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/.venv/lib/python3.12/site-packages/numpy/_core/_methods.py:148(_var)
+   129651    0.351    0.000    0.351    0.000 {method 'argsort' of 'numpy.ndarray' objects}
+    63000    0.206    0.000    0.212    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/qiea.py:275(quantum_crossover)
+    63000    0.192    0.000    0.211    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/qiea.py:280(quantum_mutation)
+  1892050    0.184    0.000    0.184    0.000 {method 'items' of 'dict' objects}
+    63000    0.153    0.000    0.315    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/qiea.py:271(rotate_toward)
+
+
+
+
+=== route1_334 (n_var=333, n_gen=500, 3 seeds) ===
+  seed 1: total   24.18s  evaluate   17.68s  archive   0.50s  other   6.00s  evals 66087  restarts 47  |archive| 25
+  seed 2: total   24.15s  evaluate   17.63s  archive   0.49s  other   6.03s  evals 65961  restarts 45  |archive| 30
+  seed 3: total   24.60s  evaluate   17.94s  archive   0.50s  other   6.16s  evals 65961  restarts 45  |archive| 14
+
+  cProfile (seed 1, sorted by own time -- ranking only, shares inflated):
+         37837809 function calls in 32.552 seconds
+
+   Ordered by: internal time
+   List reduced from 101 to 15 due to restriction <15>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+    66087   14.550    0.000   15.557    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/problem.py:81(evaluate_routes)
+    66087    4.501    0.000    6.044    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/problem.py:38(split_routes)
+  1890000    3.339    0.000    6.404    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/qiea.py:167(tchebycheff)
+ 22803020    1.583    0.000    1.583    0.000 {method 'append' of 'list' objects}
+  1890548    1.200    0.000    2.125    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py:66(_wrapreduction)
+        1    1.072    1.072   32.552   32.552 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/qiea.py:287(run)
+    66087    1.025    0.000    7.069    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/problem.py:76(decode)
+  2025773    0.890    0.000    0.890    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+  1890000    0.816    0.000    2.937    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/.venv/lib/python3.12/site-packages/numpy/_core/fromnumeric.py:3049(max)
+   129714    0.630    0.000    0.630    0.000 {method 'argsort' of 'numpy.ndarray' objects}
+    66087    0.435    0.000    0.716    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/.venv/lib/python3.12/site-packages/numpy/_core/_methods.py:148(_var)
+    63000    0.276    0.000    0.282    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/qiea.py:275(quantum_crossover)
+    63000    0.226    0.000    0.248    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/qiea.py:280(quantum_mutation)
+  1892051    0.197    0.000    0.197    0.000 {method 'items' of 'dict' objects}
+    63000    0.179    0.000    0.354    0.000 /home/olivian/Documents/Medicus/Paper1/HQIEA_ARGC_HDPFA/src/qiea.py:271(rotate_toward)
+
+
+
+
+=== Summary (medians over seeds) ===
+instance     n_var  total s  eval % archive %  other %  ms/eval  Amdahl max (eval only)
+A-n32-k5        31     7.68   29.4%      2.2%    68.4%    0.034                    1.4x
+route2_199     198    16.17   62.8%      2.1%    35.1%    0.154                    2.7x
+route1_334     333    24.18   73.1%      2.1%    24.9%    0.268                    3.7x

@@ -170,9 +170,124 @@ What this changes in the plan:
     later without changes to the algorithm.
 
 --------------------------------------------------------------------------------
+7. PARALLEL-PERFORMANCE WORK PLAN (added 2026-09-26)
+--------------------------------------------------------------------------------
+Parallelizing the evaluation shouldn't change QIEA's results, so this is
+engineering plus measurement, with no new algorithm research.
+
+What the code allows (from reading src/qiea.py and src/problem.py):
+  - The algorithm already evaluates in batches. Each generation builds all
+    H=126 children first, then evaluates them in one evaluate_population call,
+    and only then does replacement. Those evaluations are independent, so they
+    can run in parallel without changing the algorithm. All random numbers are
+    drawn in the main process, so a parallel run with the same seed should give
+    the same results as a serial run (expected, still to be verified).
+  - Evaluation is pure Python: evaluate_routes loops edge by edge, so a
+    compiled version should be much faster even on one core (not yet
+    measured).
+  - The baselines use the same evaluator (CVRPProblem._evaluate), so speeding
+    it up helps every algorithm equally and keeps wall-clock comparisons fair.
+  - Some work stays serial: the per-subproblem scoring loops and archive
+    pruning (duplicate removal and dominance sorting), which the restart makes
+    heavier. Their share of the runtime sets the ceiling on speedup.
+
+Work plan:
+  1. Profile (about 1 day). cProfile on QIEA for a small, medium and large
+     instance (A-n32-k5, route2_199, route1_334). Result: the share of time in
+     evaluation, genetic operators and the archive -> the best possible
+     speedup before anything is built.
+  2. Faster single-core evaluation with Numba (2-3 days). Rewrite route
+     splitting and the 5 objectives as one compiled function taking a whole
+     batch of permutations. Check outputs match the current code (bit-for-bit
+     if possible, otherwise within a stated float tolerance). Also compile or
+     vectorize the serial hot spots found in step 1.
+  3. Two parallel versions to compare (3-4 days), selected with a backend=
+     option and plugged into CVRPInstance so the baselines get them too:
+       (a) multiprocessing: a worker pool kept alive for the whole run; each
+           worker loads the instance once; each generation's batch is split
+           among them in chunks.
+       (b) Numba threads (prange): shared memory, no data copying between
+           processes.
+     Comparing them is a contribution in itself: small instances give very
+     short evaluations, where process overhead should hurt (a) -- exactly the
+     session's performance-model topic.
+  4. Correctness check (about 1 day). For fixed seeds on all 7 instances,
+     confirm serial and parallel give identical fronts and hypervolume, so the
+     quality results in results/ can be reused as they are.
+  5. Experiments (about 1 week, mostly unattended):
+       - Strong scaling: one fixed run with 1, 2, 4, 6, 8, 12, 14, 20
+         workers, on 3 instance sizes; speedup and efficiency for both
+         versions.
+       - Performance model: fit Amdahl's law (serial share from step 1 vs
+         measured speedups); explain where it fails (process overhead on
+         small instances, work spilling onto the efficiency cores).
+       - Fast vs slow cores: pin workers to performance cores only, efficiency
+         cores only, then mixed (ties to the PDP2026 heterogeneous paper).
+       - Time-to-quality: hypervolume vs wall-clock time for all 5 algorithms
+         with the same parallel evaluator. This could change the paper's
+         framing.
+       - Restart cost: time per generation with restart on and off (open item
+         from logs.txt section 15).
+       - Parallel independent runs: throughput when many whole runs share the
+         cores (how the campaign was executed) -- one short paragraph.
+       - Optional, energy: Intel RAPL power counters, if readable on this
+         laptop (may need root); reuses the PDP2026 methods.
+     Laptop measurement rules: AC power with a fixed power profile; numpy
+     limited to 1 thread per process; repeat each measurement 5+ times and
+     report the median with the spread.
+
+Resulting figures and tables (about 2.25 pages):
+  1. Time-breakdown bar chart from profiling, per instance size.
+  2. Speedup vs worker count for both versions, with the Amdahl curve.
+  3. Parallel efficiency, with the performance-core and efficiency-core
+     regions marked.
+  4. Hypervolume vs wall-clock time for all 5 algorithms, on 2-3 instances.
+  5. Table: time per generation, restart cost, single-core Numba speedup.
+
+Schedule: week 1 steps 1-2; week 2 steps 3-4; weeks 3-4 step 5 runs in the
+background while the paper text is written.
+
+Risk: if profiling shows evaluation is only a small share of the runtime, the
+parallel speedup will be modest. Still reportable (the performance model
+explains it), but the story would then lean more on the Numba speedup and
+time-to-quality. Step 1 answers this within a day, so it goes first.
+
+--------------------------------------------------------------------------------
 SOURCES
 --------------------------------------------------------------------------------
 - PDP 2027 HPCMS special session: https://research.ac.upc.edu/PDP2027/hpcms.html
 - PDP 2027 main site:             https://research.ac.upc.edu/PDP2027/index.html
 - PDP 2027 on SIGARCH:            https://www.sigarch.org/call-contributions/pdp-2027/
 - PDP 2027 on WikiCFP:            http://wikicfp.com/cfp/servlet/event.showcfp?eventid=202537
+
+--------------------------------------------------------------------------------
+8. STEP 1 RESULT: PROFILE (2026-09-26) -- full details in logs.txt section 17
+--------------------------------------------------------------------------------
+Share of QIEA runtime (500 gens, medians of 3 seeds):
+  instance    total   evaluation  other (mostly Tchebycheff)  best speedup from
+                                                              parallel eval only
+  A-n32-k5    7.7s    29%         68%                         1.4x
+  route2_199  16.2s   63%         35%                         2.7x
+  route1_334  24.2s   73%         25%                         3.7x
+Restart overhead: 0-5% (all from its extra evaluations).
+
+What this means for section 7's plan (the risk flagged there came true):
+  - Parallelizing evaluation alone has a low ceiling. Both big costs are
+    Python call overhead, which serial work removes: vectorize Tchebycheff,
+    compile evaluation with Numba.
+  - After compiling, a generation's evaluation batch will likely be ~1 ms, too
+    small for multiprocessing to pay off. Numba threads may still help on the
+    largest instances.
+  - The parallel level that fits this workload is independent runs (1,050
+    runs in the full campaign), scaled across P-cores and E-cores.
+
+Suggested revised story for the performance part (pending decision):
+  "Profiling-guided performance engineering of a QIEA": measured time
+  breakdown -> Amdahl analysis showing why fine-grained parallel evaluation
+  doesn't pay -> serial optimization (vectorized Tchebycheff + Numba) ->
+  coarse-grained parallel scaling of independent runs on a hybrid-core CPU ->
+  time-to-quality for all 5 algorithms. Negative results (multiprocessing
+  overhead) are reported, with measurements.
+Revised order of work: vectorize Tchebycheff + Numba evaluator first (with a
+bit-for-bit correctness check), then measure intra-run parallel options
+(multiprocessing vs Numba threads) on the faster code, then run-level scaling.

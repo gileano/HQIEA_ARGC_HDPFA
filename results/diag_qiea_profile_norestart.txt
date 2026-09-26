@@ -1,0 +1,21 @@
+
+=== A-n32-k5 (n_var=31, n_gen=500, 3 seeds) ===
+  seed 1: total    8.33s  evaluate    2.37s  archive   0.18s  other   5.78s  evals 63126  restarts 0  |archive| 4
+  seed 2: total    7.81s  evaluate    2.23s  archive   0.17s  other   5.41s  evals 63126  restarts 0  |archive| 9
+  seed 3: total    7.84s  evaluate    2.23s  archive   0.17s  other   5.44s  evals 63126  restarts 0  |archive| 12
+
+=== route2_199 (n_var=198, n_gen=500, 3 seeds) ===
+  seed 1: total   16.93s  evaluate   10.35s  archive   0.37s  other   6.20s  evals 63126  restarts 0  |archive| 17
+  seed 2: total   15.46s  evaluate    9.45s  archive   0.32s  other   5.69s  evals 63126  restarts 0  |archive| 23
+  seed 3: total   15.54s  evaluate    9.51s  archive   0.33s  other   5.70s  evals 63126  restarts 0  |archive| 32
+
+=== route1_334 (n_var=333, n_gen=500, 3 seeds) ===
+  seed 1: total   23.54s  evaluate   16.83s  archive   0.51s  other   6.21s  evals 63126  restarts 0  |archive| 33
+  seed 2: total   22.75s  evaluate   16.34s  archive   0.48s  other   5.93s  evals 63126  restarts 0  |archive| 37
+  seed 3: total   23.03s  evaluate   16.55s  archive   0.51s  other   5.97s  evals 63126  restarts 0  |archive| 23
+
+=== Summary (medians over seeds) ===
+instance     n_var  total s  eval % archive %  other %  ms/eval  Amdahl max (eval only)
+A-n32-k5        31     7.84   28.4%      2.2%    69.4%    0.035                    1.4x
+route2_199     198    15.54   61.2%      2.1%    36.7%    0.151                    2.6x
+route1_334     333    23.03   71.9%      2.2%    25.9%    0.262                    3.6x

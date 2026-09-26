@@ -1012,3 +1012,78 @@ IMPLEMENTATION LOG — Paper 2 (updated 2026-08-12)
        itself (as opposed to QIEA's Tchebycheff-neighborhood mating) is the
        actual mechanistic difference, rather than any tunable knob in the
        current QIEA design.
+
+================================================================================
+17. Runtime profile (2026-09-26) -- step 1 of the PDP 2027 parallel-performance
+    plan (submission2.txt section 7). Evaluation is only 29-73% of QIEA's
+    runtime, so parallelizing evaluation alone caps speedup at 1.4-3.7x; most
+    of the rest is Python call overhead that can be removed serially. Restart
+    overhead measured at ~0-5%. New script: src/diag_qiea_profile.py. Raw
+    output: results/diag_qiea_profile.txt, results/diag_qiea_profile_norestart.txt.
+================================================================================
+
+    a) Setup: full QIEA.run() at current defaults, n_gen=500, 3 seeds, on
+       A-n32-k5 (n_var=31), route2_199 (n_var=198), route1_334 (n_var=333).
+       This laptop (i7-12700H), BLAS pinned to 1 thread. Phase shares come from
+       perf_counter wrappers (low overhead); a separate cProfile run ranks hot
+       functions only (cProfile inflates pure-Python code, so its shares are
+       not used). No source changes to qiea.py/problem.py.
+
+    b) Result (medians over 3 seeds):
+         instance    total   evaluate  archive  other   ms/eval  Amdahl max
+         A-n32-k5    7.68s   29.4%     2.2%     68.4%   0.034    1.4x
+         route2_199  16.17s  62.8%     2.1%     35.1%   0.154    2.7x
+         route1_334  24.18s  73.1%     2.1%     24.9%   0.268    3.7x
+       "Amdahl max" = the best possible speedup if ONLY evaluation were
+       parallelized, with infinite workers.
+
+    c) Where the non-evaluation time goes: "other" is ~5.2-6.0s on EVERY
+       instance, i.e. independent of instance size. cProfile shows it is
+       dominated by tchebycheff(): 1.89M calls per run (500 gens x 126
+       subproblems x 10 neighbors x 3 calls -- once in guide selection, twice
+       in replacement), each a numpy call on a 5-element array, so the cost is
+       numpy per-call overhead, not arithmetic. Guide selection can be
+       vectorized exactly; replacement is sequential (F[j] changes inside the
+       loop) but the child's scores can be precomputed and the current scores
+       kept in an array, which preserves the exact semantics. Expected to
+       remove most of the ~5-6s (estimate, not measured).
+
+    d) Where evaluation time goes: CVRPInstance.evaluate_routes (edge-by-edge
+       Python loop) and split_routes (Python list building), i.e. interpreter
+       overhead again. Each evaluation takes only 0.03-0.27 ms, so one
+       generation's batch of 126 evaluations takes ~4-34 ms in total.
+
+    e) Archive (_update_archive) is ~2% everywhere -- not worth optimizing.
+       Archive sizes stay small (4-30 points).
+
+    f) Restart overhead (closes section 15g-iv / 16f-ii): same runs with
+       restart_patience=None: A-n32-k5 7.84s (vs 7.68s with restart -- within
+       noise), route2_199 15.54s (vs 16.17s, +4%), route1_334 23.03s (vs
+       24.18s, +5%). This matches the extra evaluations the restart adds
+       (~66,000 vs 63,126 evaluations; the restart fires ~45-48 times per
+       500-gen run, each re-evaluating 63 individuals). So the restart costs
+       0-5% runtime, all of it from those extra evaluations. Section 15g-iv's
+       "noticeably longer wall-clock" for the post-fix campaign is therefore
+       NOT explained by QIEA's own per-run cost; likely machine contention or
+       run-to-run noise during that campaign (not verified).
+
+    g) Implications for the PDP 2027 plan:
+       - Parallelizing evaluation by itself gives little: at most 1.4x on the
+         small instance and 3.7x on the largest, before any overhead.
+       - The per-generation batch is small (4-34 ms now). After compiling the
+         evaluator (Numba), it will be far smaller (estimate: ~1 ms or less),
+         so process-based parallelism (multiprocessing) will very likely cost
+         more in communication than it saves. Numba threads are the only
+         intra-run option likely to help, and only on large instances. To be
+         confirmed by measurement.
+       - The larger gains are serial: vectorizing Tchebycheff and compiling
+         evaluation attack ~95% of the runtime together. That work should
+         come first.
+       - The natural parallel level for this workload is coarse-grained:
+         independent runs (seeds x algorithms x instances -- 1,050 runs for
+         the full campaign), which is how section 14's campaign was executed.
+         Scaling of that across the laptop's P-cores and E-cores is a
+         measurable, honest parallel result.
+       - Measurement noise: the first run of a series was up to ~7% slower
+         than the others (e.g. 8.33s vs 7.81s), consistent with laptop
+         turbo/thermal behavior. Take medians and use warm-up runs.

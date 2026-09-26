@@ -1,0 +1,178 @@
+PDP 2027 -- HPCMS special session: submission plan for HQIEA-ARGC
+(written 2026-09-26)
+================================================================================
+
+SUMMARY
+The deadline for the HPCMS special session at PDP 2027 is 31 October 2026, five
+weeks from 2026-09-26. The session wants HPC work, and this project has none
+yet, so the paper would need a parallel/performance section built on top of the
+existing results.
+
+--------------------------------------------------------------------------------
+1. THE VENUE
+--------------------------------------------------------------------------------
+PDP 2027 is the 35th Euromicro Conference on Parallel, Distributed and
+Network-Based Processing, held in Barcelona on 17-19 March 2027. You'd submit to
+the special session HPCMS: High Performance Computing in Modelling and
+Simulation.
+
+  Paper deadline               31 Oct 2026 (the main track closes 26 Oct, with
+                               abstracts due 19 Oct)
+  Notification / camera-ready  10 Dec 2026 / 27 Jan 2027
+  Format                       8 pages max, IEEE double-column, 10pt
+  Review                       Double-blind
+  Proceedings                  IEEE CPS, Scopus-indexed. One author must
+                               register and present.
+  Submission                   https://easychair.org/my/conference?conf=pdp2027
+
+The session topics that match this project:
+  #3 "Genetic Algorithms ... Swarm Intelligence implementations"
+  #6 "Optimization algorithms, modelling techniques related to optimization"
+  #4 "Integrated approach to optimization and simulation"
+  #5 "MPI, OpenMP, Sycl and CUDA applications"
+  #8 "Performance models ... efficient parallel algorithms"
+
+Topic #10, "HPC Applications in Quantum Computing", is tempting, but a
+quantum-inspired algorithm isn't quantum computing. Don't lean on it.
+
+--------------------------------------------------------------------------------
+2. WHAT THE PROJECT IS MISSING FOR THIS VENUE
+--------------------------------------------------------------------------------
+1. The venue expects HPC work, and there is none yet. No script in src/ uses
+   multiprocessing, MPI, Numba or GPUs. The 30-run campaign was run as one
+   process per instance, which isn't a research contribution. A pure algorithm
+   paper would fit the session's scope only weakly.
+2. The results aren't a performance win. QIEA comes last on all 7 instances.
+   The draft in logs.txt already handles this honestly by framing the paper as
+   diagnosis plus correction. That works, but on its own it's thin for PDP.
+
+Your earlier work fits this venue well. The ~/Documents/Medicus/PDP2026 folder
+contains "Energy-Aware Benchmarking of Quantum-Inspired Evolutionary Algorithms
+on Heterogeneous HPC Systems". Pairing the algorithm story with a
+parallel-performance story would extend your own line of work and match what
+PDP reviewers expect.
+
+--------------------------------------------------------------------------------
+3. RECOMMENDED PAPER: ALGORITHM DIAGNOSIS PLUS A PARALLEL IMPLEMENTATION
+--------------------------------------------------------------------------------
+Working title:
+  "Parallel Quantum-Inspired Evolutionary Algorithm for Many-Objective
+  Waste-Collection Routing: Stagnation Diagnosis, Restart Correction, and
+  Scalability Analysis"
+
+Contribution 1, the algorithm (already done, taken from logs.txt):
+  - A 5-objective CVRP model of the Sibiu data.
+  - The permutation decode that needs no repair step.
+  - The generation-trace diagnostic that shows the early plateau (section 14).
+  - The restart fix, significant on all 7 instances with gains of +28% to +66%
+    (section 15).
+  - The honest comparison against NSGA-II, SPEA2, MOEA/D and RVEA over 30 runs.
+
+Contribution 2, parallelization (needs to be built, about 2-3 weeks):
+  - Each of QIEA's H=126 subproblems can be updated and evaluated
+    independently. The decode (argsort) and the 5-objective evaluation are the
+    hot path.
+  - Two options:
+      (a) CPU: parallel batch evaluation with multiprocessing, or mpi4py if you
+          have cluster access. This is the smallest build.
+      (b) Vectorized batch evaluation with Numba, or on a GPU with CuPy. This
+          makes a stronger PDP story but is harder.
+  - Report speedup and parallel efficiency against core count, and scaling
+    against instance size (32 -> 334 nodes).
+  - Measure the restart's runtime overhead, which is an open item from
+    section 15.
+  - Time-to-quality: compare hypervolume against wall-clock time instead of
+    generations. run_experiment.py already records time_s per run. This
+    comparison could show QIEA in a better light if it's cheaper per
+    generation, or it might not. Nobody has measured it yet, so don't assume
+    the result.
+  - Optionally add energy measurements, reusing your methods from the PDP2026
+    paper.
+
+8-page outline:
+  Intro and related work (QIEA, many-objective routing, parallel
+    evolutionary algorithms) ........................................ 1.25
+  Problem model (5 objectives, Sibiu and CVRPLIB data) ................ 1
+  Algorithm (encoding, decomposition, ARGC, restart) .................. 1.25
+  Parallel design and performance model ............................... 1
+  Experiments: quality results (hypervolume tables, Wilcoxon/Friedman,
+    plateau trace) .................................................... 1.5
+  Experiments: performance results (speedup, efficiency,
+    time-to-quality) .................................................. 1.25
+  Limitations and conclusion .......................................... 0.75
+
+--------------------------------------------------------------------------------
+4. FIXES NEEDED BEFORE SUBMISSION
+--------------------------------------------------------------------------------
+- Fix the draft abstract (logs.txt lines 16-49):
+    - Only the 3 Sibiu instances are real-world; the other 4 are CVRPLIB
+      benchmarks.
+    - Drop the claim of full ZDT/DTLZ/WFG benchmarking against all baselines,
+      or cut the synthetic suite, since space is tight.
+    - Present the restart as an added mechanism, not a correction of ARGC.
+- Double-blind: cite your PDP2026 paper in the third person. Mentioning "Sibiu"
+  is fine, but remove anything else that identifies you or your affiliation.
+- Limitations: state that the demand and cost data are synthesized, and that
+  the mapping from the Sibiu files to routes is unconfirmed.
+- Leave out: the QAOA baseline and PlatEMO. They don't fit in 5 weeks.
+
+--------------------------------------------------------------------------------
+5. SUGGESTED SCHEDULE
+--------------------------------------------------------------------------------
+  Weeks 1-2  parallel evaluation plus timing/scaling experiments. The quality
+             results from the full campaign can be reused as they are.
+  Week 3     time-to-quality runs, plus a plateau trace on all 7 instances
+             (only 2 have been traced so far).
+  Weeks 4-5  writing, figures, and internal review. Submit by 26 Oct if you'd
+             rather use the main track.
+
+--------------------------------------------------------------------------------
+6. DECISION: PARALLEL PLATFORM (decided 2026-09-26)
+--------------------------------------------------------------------------------
+Decision: for now, all simulations run on this laptop only, as a multicore
+workstation. No cluster, and no GPU at the start.
+
+The laptop (checked 2026-09-26):
+  CPU     Intel Core i7-12700H: 14 cores / 20 threads, hybrid design
+          (6 performance cores with hyperthreading = 12 threads, plus 8
+          efficiency cores), up to 4.7 GHz
+  Memory  62 GiB
+  GPU     An NVIDIA GPU may be present, but the driver isn't working (nvidia-smi
+          fails), so GPU is out of scope for now.
+  Note: logs.txt section 14a says "20 physical cores". That is wrong -- 20 is
+  the thread count; there are 14 physical cores, and they are not identical.
+
+What this changes in the plan:
+  - Use option (a): parallel batch evaluation with Python multiprocessing (or
+    concurrent.futures) on one machine. Drop mpi4py and CuPy for now.
+  - Numba on the CPU is still possible as an optional add-on (a JIT-compiled,
+    vectorized decode + evaluate), since it doesn't need a GPU. It gives a
+    second axis to report: single-core speedup from compilation vs multicore
+    speedup from parallelism.
+  - Scaling experiments go up to 14 workers (physical cores), with 20 threads
+    as an extra data point. Suggested worker counts: 1, 2, 4, 6, 8, 12, 14, 20.
+  - The hybrid P-core/E-core design is a measurement risk AND a possible
+    angle:
+      * Risk: speedup curves will bend once work spills from P-cores onto
+        E-cores (after ~6 workers), and turbo/thermal throttling on a laptop
+        adds noise. Mitigate: run on AC power with a fixed performance
+        profile, repeat each timing several times and report median + spread,
+        optionally pin workers to cores (taskset) to separate P-core and E-core
+        results.
+      * Angle: reporting load balance on heterogeneous cores ties directly to
+        the PDP2026 paper ("... on Heterogeneous HPC Systems") and gives the
+        performance section something beyond a plain speedup plot.
+  - Keep BLAS pinned to 1 thread per process (as in the section 14 campaign)
+    so the numpy threads don't compete with the worker processes.
+  - Present it honestly in the paper as a single-node shared-memory study;
+    list multi-node (MPI) and GPU scaling as future work. The design
+    (independent subproblem evaluation) should be written so it maps to those
+    later without changes to the algorithm.
+
+--------------------------------------------------------------------------------
+SOURCES
+--------------------------------------------------------------------------------
+- PDP 2027 HPCMS special session: https://research.ac.upc.edu/PDP2027/hpcms.html
+- PDP 2027 main site:             https://research.ac.upc.edu/PDP2027/index.html
+- PDP 2027 on SIGARCH:            https://www.sigarch.org/call-contributions/pdp-2027/
+- PDP 2027 on WikiCFP:            http://wikicfp.com/cfp/servlet/event.showcfp?eventid=202537

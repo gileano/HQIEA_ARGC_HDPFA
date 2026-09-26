@@ -73,10 +73,29 @@ vectors partition objective space into H Tchebycheff subproblems, one individual
 subproblem, mating restricted to each subproblem's nearest-neighbor set (`neighborhood_size`).
 
 **Adaptive rotation gate:** the per-generation rotation step size (`rotation_angle` in
-`qiea.py`) decays linearly over generations (explore -> exploit), but is boosted 3x whenever
-angular diversity (`diversity()`) stalls over a sliding window (`diversity_window`,
-`diversity_stagnation_tol`) — together with a temporary mutation-probability bump. This
-stagnation-escape logic is the "ARGC" in the project name.
+`qiea.py`) decays linearly over generations (explore -> exploit), but is boosted
+(`rotation_boost_multiplier`, default 3x) whenever angular diversity (`diversity()`) stalls over
+a sliding window (`diversity_window`, `diversity_stagnation_tol`) — together with a temporary
+mutation-probability bump (`mutation_boost_multiplier`, default 5x). This stagnation-escape
+logic is the "ARGC" in the project name. In practice it almost never fires at the default
+tolerance, and loosening the tolerance made results worse. See `logs.txt` sections 12–13.
+
+**Plateau-gated restart:** once the archive hasn't grown for `restart_patience` (default 10)
+generations, `_do_restart` reseeds `restart_fraction` (default 0.5) of the H subproblems with
+fresh random theta; the rest stay untouched, so good solutions are kept. This fixed an early
+hard hypervolume plateau and is the largest validated improvement in the project
+(`logs.txt` section 15). `restart_patience=None` disables it.
+
+**Size-scaled defaults (permutation decode only):** `theta_min`/`theta_max`/`mutation_prob`
+default to `None` and resolve via `_default_theta_bounds` / `_default_mutation_prob`, which
+shrink them as `n_var` grows. They are clamped so they reduce *exactly* to the old
+hand-tuned values at `n_var <= 31` — this representation is sensitive to ~1% drift there
+(`logs.txt` section 9e). Continuous decode keeps fixed values.
+
+**Fairness rule for defaults:** QIEA, MOEA/D and RVEA share `n_partitions=5` (H=126).
+Never ship per-instance hyperparameters, or change QIEA's H without changing the
+baselines' too — either would invalidate the comparison. This is why `neighborhood_size`
+stays at 10 even though it helps route2_199.
 
 **Problem layer (`problem.py`):** `CVRPInstance` holds precomputed distance/time/cost matrices
 and evaluation logic; `CVRPProblem` wraps it as a pymoo `Problem` (n_obj=5) so QIEA and every
@@ -101,11 +120,36 @@ so `run_experiment.py` scores them via hypervolume/spacing/spread against a shar
 point instead. `wilcoxon_test` (paired, two algorithms) and `friedman_test` (many algorithms)
 back the statistical-significance claims in the paper.
 
+## Tuning / diagnostic scripts
+
+`src/tune_*.py` (hyperparameter screens and confirm runs) and `src/diag_*.py` (read-only
+diagnostics, e.g. `diag_qiea_generation_trace.py` for hypervolume-vs-generation traces) back
+the findings recorded in `logs.txt`. Each script computes its own reference point, so
+hypervolume values are only comparable *within* one script's output, not across scripts.
+Lesson learned repeatedly: 5-seed screens on noisy grids often don't survive a 15–20-seed
+confirmation — always confirm before changing a default.
+
 ## Status / known limitations
 
-Current results (see README "Status") are pilot-scale (`--n-gen 60-80 --n-runs 3-5`), not the
-paper's final numbers. QIEA is currently on par with NSGA-II/SPEA2 but behind MOEA/D and RVEA
-on hypervolume — it is un-tuned, not necessarily worse in principle. Do not present pilot-run
-numbers as final results. The Sibiu file-to-route-count mapping (`SB25SOM`/`SB30SOM`/`SB45SOM`
+`logs.txt` is the authoritative research log (latest: section 16, 2026-08-18); read it before
+proposing new tuning work so you don't repeat investigations that are already closed.
+
+`results/*_indicators.csv` / `*_fronts.npz` now hold the **full-scale** campaign (30 runs,
+n-gen=500, pop-size=80, all 7 instances, restart fix included). At that scale QIEA is
+**last of five on every instance** (hypervolume 0.30–0.58x the best baseline); its only
+statistical tie is with NSGA-II on route1_334. MOEA/D and RVEA are the hardest baselines.
+Earlier pilot-scale claims (n-gen=80) that QIEA beat or tied NSGA-II/SPEA2 did **not** hold
+at 500 generations — never cite pilot numbers as results.
+
+Ruled out as explanations for the remaining gap: rotation-step size, mutation rate,
+neighborhood size, stagnation-boost tolerance/magnitude, and population size H (varied
+for all five algorithms together). Still open: continuous decode (ZDT/DTLZ/WFG) has never
+been rechecked for the plateau or the scaling findings; the restart's runtime overhead
+isn't measured; next idea is structural (MOEA/D and RVEA's reference-vector-guided
+selection vs QIEA's Tchebycheff-neighborhood mating), not another hyperparameter sweep.
+`run_synthetic.py` only compares QIEA vs NSGA-II on ZDT1-3/DTLZ1-2/WFG1. The QAOA baseline
+from the paper plan has not been built.
+
+The Sibiu file-to-route-count mapping (`SB25SOM`/`SB30SOM`/`SB45SOM`
 -> `route1_334`/`route2_199`/`route3_202`) is unconfirmed against original records — flag this
 if it becomes load-bearing for a claim.

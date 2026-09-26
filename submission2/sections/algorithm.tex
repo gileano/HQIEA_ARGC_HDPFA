@@ -1,0 +1,127 @@
+% Budget: ~1.25 pages. Source of truth: src/qiea.py (module docstring explains every
+% mechanism and the logs.txt section that justified it). Constants below match the
+% current defaults in QIEA.__init__, _default_theta_bounds, _default_mutation_prob.
+\section{HQIEA-ARGC}
+\label{sec:algorithm}
+
+HQIEA-ARGC combines a qubit-angle chromosome with MOEA/D-style
+decomposition~\cite{zhang2007moead} and two diversity mechanisms: the adaptive
+rotation-gate control (ARGC) that gives the algorithm its name, and a
+plateau-gated restart that replaced it in practice.
+\Cref{alg:hqiea} summarizes one run.
+
+\subsection{Qubit-angle chromosome and repair-free decoding}
+Following the quantum-inspired evolutionary algorithm (QIEA) of Han and
+Kim~\cite{han2002qea}, each decision variable is a qubit. We restrict it to real
+amplitudes, $(\alpha_i,\beta_i)=(\cos\theta_i,\sin\theta_i)$, so the normalization
+$\alpha_i^2+\beta_i^2=1$ holds by construction and an individual is simply a vector
+$\boldsymbol\theta\in[0,\pi/2]^n$. For routing, the giant tour of
+\cref{sec:problem} is obtained by sorting:
+\begin{equation}
+\pi=\operatorname{argsort}(\boldsymbol\theta).
+\end{equation}
+Sorting real numbers cannot produce duplicates, so every chromosome is a valid
+permutation and no repair is needed. This replaces the binary measurement plus
+duplicate-repair pipeline of an earlier QIEA for the same Sibiu routes, in which
+Gîlea et al.~\cite{gilea2026scalable} traced the loss of diversity on large
+instances to the repair step: as the number of cities grows, most of each tour is
+produced by repair rather than by the qubits. Combined with the capacity-first
+split, the whole pipeline from qubits to feasible routes is repair-free.
+
+\subsection{Decomposition}
+A Das--Dennis simplex lattice~\cite{das1998nbi} with 5 partitions in the
+5-objective space gives $H=126$ weight vectors $\mathbf w^1,\dots,\mathbf w^H$.
+Each defines a Tchebycheff subproblem
+\begin{equation}
+g(\mathbf f\mid\mathbf w,\mathbf z^\ast)=\max_{k}\;\max(w_k,10^{-6})\,
+\lvert f_k-z^\ast_k\rvert,
+\end{equation}
+where $\mathbf z^\ast$ is the best value seen so far for each objective. The
+population holds one individual per subproblem. The neighborhood $B(i)$ is the
+set of $|B(i)|=10$ subproblems whose weight vectors are closest to $\mathbf w^i$.
+The same $H=126$ weight vectors are used by the MOEA/D and RVEA baselines, so
+these three methods have identical population sizes.
+
+\subsection{Variation operators}
+For subproblem $i$, the \emph{guide} is the member of $B(i)$ with the best value
+of $g(\cdot\mid\mathbf w^i,\mathbf z^\ast)$, and the \emph{mate} is a random member
+of $B(i)$. A child is built in three steps:
+\begin{enumerate}
+\item \emph{Crossover:} each angle is taken from $\boldsymbol\theta^i$ or from the
+  mate with probability $1/2$.
+\item \emph{Rotation gate:} each angle moves one step $\Delta\theta$ toward the
+  guide, $\theta_j\leftarrow\operatorname{clip}\bigl(\theta_j+\Delta\theta\,
+  \operatorname{sgn}(\theta^{\mathrm{guide}}_j-\theta_j),\,0,\,\pi/2\bigr)$.
+\item \emph{Qubit flip:} with probability $p_m$ per gene,
+  $\theta_j\leftarrow\pi/2-\theta_j$, which swaps $\alpha_j$ and $\beta_j$ (the
+  real-amplitude analogue of a Pauli-X gate).
+\end{enumerate}
+All $H$ children are generated first and then evaluated together as one batch.
+Each child then replaces every neighbor $j\in B(i)$ whose current solution it
+matches or improves under $g(\cdot\mid\mathbf w^j,\mathbf z^\ast)$. An external
+archive keeps all non-dominated solutions found (capped at 500 by random
+truncation) and is returned at the end.
+
+\subsection{Size-scaled step and mutation rate}
+With the permutation decode, what matters is how far an angle moves relative to
+the spacing between neighboring angles, about $\gamma=(\pi/2)/n$. A fixed step
+that is fine-grained for $n=31$ becomes a coarse, disruptive move for $n=333$.
+The step therefore decays linearly over the run from $\theta_{\max}$ to
+$\theta_{\min}$, with
+\begin{equation}
+\begin{gathered}
+\theta_{\min}=\min(0.1,\,2\gamma),\qquad
+\theta_{\max}=\min(0.35,\,7\gamma),\\
+p_m=\min(0.05,\,1.55/n).
+\end{gathered}
+\end{equation}
+The mutation rate keeps the expected number of flipped genes per child near 1.55
+instead of growing with $n$. The caps make all three values reduce exactly to
+the constants originally tuned on A-n32-k5 ($n=31$), and shrink them only for
+larger instances. In a tuning study on three instances (80-generation runs, 15
+seeds), the mutation-rate scaling alone raised the hypervolume by 49\% on
+E-n101-k8 and 65\% on route2\_199 (paired Wilcoxon, $p\le0.003$).
+
+\subsection{Adaptive rotation-gate control (ARGC)}
+The ARGC mechanism monitors angular diversity,
+$D=\frac{1}{Hn}\sum_{i,j}\lvert\theta^i_j-\bar\theta_j\rvert$. If the range of $D$
+over the last 10 generations falls below $10^{-3}$, it multiplies the rotation
+step by 3 (capped at $\theta_{\max}$) and the mutation rate by 5 for that
+generation.
+
+\subsection{Plateau-gated restart}
+We found that ARGC almost never fires. In 80-generation runs its trigger was met
+in 0 of 400 generations on A-n32-k5 and E-n101-k8, and in 4 of 400 on
+route2\_199, because the windowed diversity range bottoms out at about
+$2$--$3\times10^{-3}$. Once the population has converged, nothing re-introduces
+diversity, and hypervolume freezes (\cref{sec:experiments}). We therefore add a
+restart gated on archive growth rather than on angular diversity. When the
+archive has not grown for $P=10$ generations, a random half of the $H$
+subproblems receive fresh uniform-random angles and are re-evaluated; the other
+half keep their solutions, so the restart is elitist. $P$ and the fraction were
+chosen on three instances and then confirmed on all seven
+(\cref{sec:experiments}).
+
+\begin{algorithm}[t]
+\caption{HQIEA-ARGC (one run)}
+\label{alg:hqiea}
+\small
+\begin{algorithmic}[1]
+\State $\boldsymbol\theta^{1..H}\sim\mathcal U[0,\pi/2]^n$; evaluate; set
+  $\mathbf z^\ast$; archive $\mathcal A\gets$ non-dominated set
+\For{$t=1,\dots,G$}
+  \State $\Delta\theta,p_m\gets$ linear schedule; apply ARGC boost if $D$ stalled
+  \For{$i=1,\dots,H$} \Comment{independent per $i$}
+    \State guide, mate $\gets$ from $B(i)$
+    \State $\mathbf c^i\gets$ flip(rotate(crossover($\boldsymbol\theta^i$, mate),
+      guide, $\Delta\theta$), $p_m$)
+  \EndFor
+  \State evaluate $\{\mathbf c^i\}_{i=1}^H$ as one batch \Comment{hot spot}
+  \State update $\mathbf z^\ast$; neighborhood replacement; update $\mathcal A$
+  \If{$\mathcal A$ has not grown for $P$ generations}
+    \State reseed $H/2$ random subproblems; evaluate them
+  \EndIf
+\EndFor
+\State \Return $\mathcal A$
+\end{algorithmic}
+\end{algorithm}

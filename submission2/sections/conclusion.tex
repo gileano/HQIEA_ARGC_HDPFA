@@ -1,0 +1,42 @@
+% Budget: ~0.75 pages. DRAFT: revisit once the performance results exist.
+\section{Discussion, Limitations and Conclusion}
+\label{sec:conclusion}
+
+\emph{What the results show.} A qubit-angle encoding with argsort decoding and a
+capacity-first split gives a repair-free pipeline for many-objective routing, and
+it produces valid, non-degenerate fronts on all seven instances. The most
+consistent effect we found was not a parameter setting but a mechanism failure
+and its correction: the stagnation-escape trigger almost never fired, the
+population stalled, and a restart gated on archive growth increased hypervolume by
+28--66\% on every instance. Even so, HQIEA-ARGC ranks last on all seven
+instances. Scaling the step size and mutation rate with instance size improved
+it but did not close the gap to MOEA/D and RVEA, and the neighborhood size, ARGC
+settings and population size had no significant effect.
+
+\emph{A structural hypothesis.} Since every hyperparameter lever we tested
+failed, the remaining difference is more likely structural, for example in how
+solutions are varied, selected and replaced. It is not simply front size: RVEA
+returns fronts as small as HQIEA-ARGC's and still leads on four instances. One
+candidate stands out: all four baselines vary solutions with operators designed
+for permutations (order crossover and inversion), whereas HQIEA-ARGC changes
+tours only indirectly, by moving angles that are then sorted. It is the only
+algorithm without permutation-specific operators, and the only one that ranks
+last everywhere. Among the baselines, the selection scheme then separates
+MOEA/D and RVEA from NSGA-II and SPEA2 on the larger instances. Testing this, for
+example by adding a permutation operator to HQIEA-ARGC, is future work.
+
+\emph{Limitations.} Demands on the Sibiu routes and the road factors on all
+instances are synthesized with a fixed seed, because no measured bin-fill or
+congestion data is available; results should be read as relative comparisons
+under a documented model, not as operational savings. The emission term charges
+each arc with the load collected up to and including its destination node. The
+study runs on a single laptop CPU with hybrid cores; multi-node and GPU
+execution are not evaluated.
+% TODO: add the performance conclusions here once measured.
+
+\emph{Conclusion.} We evaluated a quantum-inspired evolutionary algorithm on a
+real 5-objective waste-collection routing problem. The plateau-gated restart is a
+large, reproducible improvement, but the algorithm does not match MOEA/D and RVEA,
+and the runtime profile shows that parallelizing its fitness evaluation alone
+would give little. Future work will test the structural hypothesis above, and
+move the evaluation to multi-node and GPU platforms.

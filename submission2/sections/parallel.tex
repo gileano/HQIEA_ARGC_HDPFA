@@ -1,0 +1,71 @@
+% Budget: ~1 page. Measured part: logs.txt section 17 (src/diag_qiea_profile.py,
+% results/diag_qiea_profile*.txt). Framing follows submission2.txt section 8
+% ("profiling-guided performance engineering") -- confirm with co-authors.
+\section{Runtime Profile and Parallel Design}
+\label{sec:parallel}
+
+Before parallelizing anything, we measured where a run spends its time. On a
+laptop with an Intel Core i7-12700H and BLAS pinned to one thread, we timed full 500-generation
+runs (3 seeds, medians) on a small, a medium and a large instance, and split the
+wall-clock time into three parts: fitness evaluation (route split and the five
+objectives), archive maintenance, and everything else, i.e., guide selection,
+variation operators and neighborhood replacement. We used low-overhead timers for
+the shares and a separate cProfile run only to rank functions, since cProfile
+inflates pure-Python code.
+
+\begin{table}[t]
+\centering
+\caption{Runtime breakdown of one HQIEA-ARGC run (500 generations, median of 3
+seeds). $S_{\max}$: Amdahl bound on speedup if only evaluation is parallelized.}
+\label{tab:profile}
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+Instance & $n$ & Time & Eval. & Archive & Other & $S_{\max}$ \\
+\midrule
+A-n32-k5    & 31  & 7.7\,s  & 29\% & 2\% & 68\% & 1.4$\times$ \\
+route2\_199 & 198 & 16.2\,s & 63\% & 2\% & 35\% & 2.7$\times$ \\
+route1\_334 & 333 & 24.2\,s & 73\% & 2\% & 25\% & 3.7$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\Cref{tab:profile} shows the result. Evaluation takes 29--73\% of the runtime and
+its share grows with instance size, but each call is cheap: 0.03--0.27\,ms, so a
+whole generation's batch of 126 evaluations costs only 4--34\,ms. Archive
+maintenance is negligible at about 2\%. The remaining time is almost constant
+across instances (5.2--6.0\,s per run) and comes mostly from one source: the
+Tchebycheff function is called about 1.9 million times per run (500 generations
+$\times$ 126 subproblems $\times$ 10 neighbors $\times$ 3 calls), each time on a
+5-element array. The cost is interpreter and library call overhead, not
+arithmetic. The restart adds 0--5\% to the runtime, all of it from the extra
+evaluations it triggers.
+
+These numbers bound what parallel evaluation alone can achieve. By Amdahl's law,
+even with unlimited workers the speedup cannot exceed 1.4$\times$ on the small
+instance and 3.7$\times$ on the largest (\cref{tab:profile}). Moreover, the
+per-generation batch is small enough that distributing it across processes risks
+costing more in communication than it saves. The profile therefore suggests a
+different order of work:
+\begin{enumerate}
+\item \emph{Remove the serial overhead.} Guide selection can compute all
+  Tchebycheff values with a single array operation per generation. Replacement is
+  sequential, because a neighbor's solution can change within the loop, but the
+  child's scores can be computed in advance and the current scores kept in an
+  array, which preserves the exact semantics. Evaluation can be compiled with
+  Numba.
+\item \emph{Parallelize at the right level.} Within one run, evaluation of a batch
+  is independent across children, and because all random numbers are drawn in the
+  main process, a parallel run with the same seed should produce the same result
+  as a serial one; we verify this before timing anything. We compare process-based (multiprocessing) and thread-based (Numba
+  \texttt{prange}) parallel evaluation. Across runs, the 1{,}050 independent runs
+  of the full study (7 instances $\times$ 5 algorithms $\times$ 30 seeds) are
+  embarrassingly parallel.
+\item \emph{Account for the hybrid CPU.} The i7-12700H has 6 performance cores
+  (12 threads) and 8 efficiency cores. Speedup curves are expected to bend once
+  work spills onto the efficiency cores, so we measure performance-core-only,
+  efficiency-core-only and mixed placements.
+\end{enumerate}
+
+% TODO: results of steps 1-3 go in Sec. experiments (runtime subsection).
+% Do NOT state speedups here until measured.

@@ -1,0 +1,225 @@
+% Starter bibliography. Entries marked "VERIFY" were carried over from the EQTC
+% abstract (submission/HQIEA_ARGC_Abstract.pdf) or need their details checked
+% before submission.
+
+@article{deb2002nsga2,
+  author  = {Deb, Kalyanmoy and Pratap, Amrit and Agarwal, Sameer and Meyarivan, T.},
+  title   = {A Fast and Elitist Multiobjective Genetic Algorithm: {NSGA-II}},
+  journal = {IEEE Transactions on Evolutionary Computation},
+  volume  = {6},
+  number  = {2},
+  pages   = {182--197},
+  year    = {2002}
+}
+
+@techreport{zitzler2001spea2,
+  author      = {Zitzler, Eckart and Laumanns, Marco and Thiele, Lothar},
+  title       = {{SPEA2}: Improving the Strength {Pareto} Evolutionary Algorithm},
+  institution = {Computer Engineering and Networks Laboratory (TIK), ETH Zurich},
+  number      = {103},
+  year        = {2001}
+}
+
+@article{zhang2007moead,
+  author  = {Zhang, Qingfu and Li, Hui},
+  title   = {{MOEA/D}: A Multiobjective Evolutionary Algorithm Based on Decomposition},
+  journal = {IEEE Transactions on Evolutionary Computation},
+  volume  = {11},
+  number  = {6},
+  pages   = {712--731},
+  year    = {2007}
+}
+
+@article{cheng2016rvea,
+  author  = {Cheng, Ran and Jin, Yaochu and Olhofer, Markus and Sendhoff, Bernhard},
+  title   = {A Reference Vector Guided Evolutionary Algorithm for Many-Objective Optimization},
+  journal = {IEEE Transactions on Evolutionary Computation},
+  volume  = {20},
+  number  = {5},
+  pages   = {773--791},
+  year    = {2016}
+}
+
+@article{han2002qea,
+  author  = {Han, Kuk-Hyun and Kim, Jong-Hwan},
+  title   = {Quantum-Inspired Evolutionary Algorithm for a Class of Combinatorial Optimization},
+  journal = {IEEE Transactions on Evolutionary Computation},
+  volume  = {6},
+  number  = {6},
+  pages   = {580--593},
+  year    = {2002}
+}
+
+@article{blank2020pymoo,
+  author  = {Blank, Julian and Deb, Kalyanmoy},
+  title   = {pymoo: Multi-Objective Optimization in {Python}},
+  journal = {IEEE Access},
+  volume  = {8},
+  pages   = {89497--89509},
+  year    = {2020}
+}
+
+@article{das1998nbi,
+  author  = {Das, Indraneel and Dennis, J. E.},
+  title   = {Normal-Boundary Intersection: A New Method for Generating the {Pareto} Surface in Nonlinear Multicriteria Optimization Problems},
+  journal = {SIAM Journal on Optimization},
+  volume  = {8},
+  number  = {3},
+  pages   = {631--657},
+  year    = {1998}
+}
+
+@article{prins2004simple,
+  author  = {Prins, Christian},
+  title   = {A Simple and Effective Evolutionary Algorithm for the Vehicle Routing Problem},
+  journal = {Computers \& Operations Research},
+  volume  = {31},
+  number  = {12},
+  pages   = {1985--2002},
+  year    = {2004}
+}
+
+@book{toth2014vrp,
+  editor    = {Toth, Paolo and Vigo, Daniele},
+  title     = {Vehicle Routing: Problems, Methods, and Applications},
+  edition   = {2nd},
+  publisher = {SIAM},
+  year      = {2014}
+}
+
+@article{belien2014waste,
+  author  = {Beli{\"e}n, Jeroen and De Boeck, Liesje and Van Ackere, Jonas},
+  title   = {Municipal Solid Waste Collection and Management Problems: A Literature Review},
+  journal = {Transportation Science},
+  volume  = {48},
+  number  = {1},
+  pages   = {78--102},
+  year    = {2014}
+}
+
+@misc{cvrplib,
+  title        = {{CVRPLIB}: Capacitated Vehicle Routing Problem Library},
+  howpublished = {\url{http://vrp.galgos.inf.puc-rio.br/}},
+  note         = {VERIFY URL and access date; consider citing Uchoa et al. (2017) as well}
+}
+
+% --- papers in the parent folder (../../*.pdf), details taken from the PDFs ---
+% Relevance notes are for writing the related-work section.
+
+% Kotil et al.: QAOA (p=6) on multi-objective weighted MAXCUT, 3 and 4 objectives,
+% 42-node heavy-hex graphs; IBM ibm_fez + MPS simulation; Pareto front via many
+% random weightings; hypervolume as metric. Shows quantum MOO stays at small,
+% synthetic, binary problems. The arXiv version is dated 2025-03-28; King (2025)
+% cites the published journal version below.
+% VERIFY: volume/pages of the journal version (DOI taken from King's reference list).
+@article{kotil2025qamoo,
+  author  = {Kotil, Ayse and Pelofske, Elijah and Riedm{\"u}ller, Stephanie and Egger, Daniel J. and Eidenbenz, Stephan and Koch, Thorsten and Woerner, Stefan},
+  title   = {Quantum Approximate Multi-Objective Optimization},
+  journal = {Nature Computational Science},
+  year    = {2025},
+  doi     = {10.1038/s43588-025-00873-y},
+  note    = {arXiv:2503.22797}
+}
+
+% King: replaces QAOA with D-Wave quantum annealing (Advantage2) on Kotil's same two
+% MO-MAXCUT problems; reaches the optimal front ~100-1000x faster and improves the
+% best known 4-objective front (30,419 points). Same point: 3-4 objectives,
+% synthetic 42-variable binary problems.
+@misc{king2025moqa,
+  author       = {King, Andrew D.},
+  title        = {Multi-Objective Optimization by Quantum Annealing},
+  year         = {2025},
+  howpublished = {arXiv:2511.01762 [quant-ph]}
+}
+
+% QOBLib: ten problem classes for benchmarking quantum optimization, incl. CVRP
+% (capacitated vehicle routing, two-index MTZ formulation). Notes that its VRP
+% instances can all be solved to optimality classically -- useful context for why
+% a real many-objective routing instance is a harder test.
+@article{koch2026qoblib,
+  author  = {Koch, Thorsten and Bernal Neira, David E. and Chen, Ying and Cortiana, Giorgio and Egger, Daniel J. and Heese, Raoul and others},
+  title   = {The Quantum Optimization Benchmarking Library},
+  journal = {Nature Computational Science},
+  volume  = {6},
+  pages   = {653--671},
+  year    = {2026},
+  doi     = {10.1038/s43588-026-00991-1}
+}
+
+% Ghlib et al.: NSGA-II for quantum-circuit synthesis (fidelity, depth, gate cost);
+% block-based and sliding-window fidelity evaluation cut cost from O(2^{2n}) to
+% O(2^{2k}); 10x speedup at 14 qubits. Relevant as an example of making
+% multi-objective evaluation scale -- the same theme as our performance section.
+@article{ghlib2026scalable,
+  author  = {Ghlib, Roumaissa and Bouhadouza, Rania and Hnaien, Faicel},
+  title   = {Scalable Multi-Objective Genetic Algorithm for Quantum Circuit Optimization},
+  journal = {Scientific Reports},
+  volume  = {16},
+  pages   = {17977},
+  year    = {2026},
+  doi     = {10.1038/s41598-026-47674-5}
+}
+
+% Gilea et al. (the authors' prior work -- cite in the THIRD PERSON, double-blind):
+% single-objective QIEA for TSP on TSPLIB (burma14 ... berlin52) and the three Sibiu
+% routes (334/199/202 nodes); qubit-string city encoding + measurement + repair.
+% Beats GA on small instances only; on the Sibiu routes GA wins clearly (e.g.
+% route1 98 km vs ~140 km) and QIEA is ~3.85x slower. Identifies the repair step as
+% the cause of diversity loss at scale, and names multi-objective + HPC as future
+% work -- exactly what this paper does.
+% Venue confirmed by the authors: PDP 2026. VERIFY pages/DOI once the IEEE CPS
+% proceedings are online.
+@inproceedings{gilea2026scalable,
+  author    = {G{\^i}lea, Olivian-Antonio and Florea, Adrian and Banciu, Claudia and Telcean, Alexandru},
+  title     = {Scalable Quantum Inspired Evolutionary Algorithm for Multi-Objective Optimization: Real World Problems},
+  booktitle = {Proceedings of the 34th Euromicro International Conference on Parallel, Distributed, and Network-Based Processing (PDP)},
+  address   = {Cluj-Napoca, Romania},
+  publisher = {IEEE},
+  year      = {2026}
+}
+
+% Source of the Sibiu route data (reference [1] of gilea2026scalable). Same research
+% group -- third person only.
+@inproceedings{banciu2025iot,
+  author    = {Banciu, Claudia and Florea, Adrian and Popa, M.},
+  title     = {{IoT}-Enabled Waste Collection: Route Optimization and Environmental Impact Reduction Using Smart Technologies},
+  booktitle = {2025 29th International Conference on System Theory, Control and Computing (ICSTCC)},
+  address   = {Cluj-Napoca, Romania},
+  pages     = {782--788},
+  year      = {2025},
+  doi       = {10.1109/ICSTCC66753.2025.11240462}
+}
+
+% --- related work suggested from the reference list of gilea2026scalable ---
+% (details as given there; VERIFY against the publisher pages before submission)
+
+% Quantum-inspired GA for cost-aware workflow scheduling in hybrid clouds, published
+% in a parallel/distributed computing journal -- good fit for the PDP audience.
+@article{hussain2024costaware,
+  author  = {Hussain, M. and Wei, L. F. and Rehman, A. and Ali, M. and Waqas, S. M. and Abbas, F.},
+  title   = {Cost-Aware Quantum-Inspired Genetic Algorithm for Workflow Scheduling in Hybrid Clouds},
+  journal = {Journal of Parallel and Distributed Computing},
+  volume  = {191},
+  pages   = {104920},
+  year    = {2024}
+}
+
+% Systematic review of multi-objective optimization in smart cities; names transport
+% and waste as core sectors where routing must balance emissions, travel time and
+% operating cost -- supports the 5-objective motivation.
+@article{chen2025smartcities,
+  author  = {Chen, Y. and Chan, W. H. and Su, E. L. M. and Diao, Q.},
+  title   = {Multi-Objective Optimization for Smart Cities: A Systematic Review of Algorithms, Challenges, and Future Directions},
+  journal = {PeerJ Computer Science},
+  volume  = {11},
+  pages   = {e3042},
+  year    = {2025}
+}
+
+% Quantum evolutionary algorithm applied to the TSP -- closest prior QEA-on-routing work.
+@misc{ma2024qeatsp,
+  author       = {Ma, Y. and Cheah, T. C.},
+  title        = {Quantum Evolutionary Algorithm for {TSP} Combinatorial Optimisation Problem},
+  year         = {2024},
+  howpublished = {arXiv:2409.13788}
+}

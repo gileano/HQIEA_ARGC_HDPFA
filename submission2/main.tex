@@ -1,0 +1,65 @@
+% PDP 2027 -- HPCMS special session submission (plan: ../submission2.txt).
+% Built on the official IEEEtran v1.8b conference template (bare_conf.tex, CTAN);
+% two-column layout as in IEEEtran_HOWTO.pdf. IEEEtran.cls / IEEEtran.bst are
+% vendored in this folder, so no system-wide IEEEtran install is needed.
+% IEEE conference format, 8 pages max, DOUBLE-BLIND: no author names, affiliations,
+% acknowledgements or first-person references to prior work. Cite the authors' earlier
+% papers in the third person ("Gilea et al. [x] showed ...").
+\documentclass[conference]{IEEEtran}
+
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage[capitalise]{cleveref}
+
+% Hyphenation hints for words LaTeX breaks badly (bare_conf.tex convention).
+\hyphenation{op-tical net-works semi-conduc-tor hyper-volume}
+
+% Working title (submission2.txt section 3); final title is written last, once the
+% performance results are in. "Parallel" and "Scalability Analysis" are only
+% justified if measured speedups make it into the paper -- otherwise retitle.
+\title{Parallel Quantum-Inspired Evolutionary Algorithm for Many-Objective
+Waste-Collection Routing: Stagnation Diagnosis, Restart Correction, and
+Scalability Analysis}
+
+% Double-blind: keep anonymous until camera-ready.
+\author{\IEEEauthorblockN{Anonymous Authors}
+\IEEEauthorblockA{Affiliation withheld for double-blind review}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+% TODO: write LAST, after the performance results (submission2.txt section 8).
+% Do not reuse the EQTC abstract as-is: it calls all seven instances real-world
+% (only the three Sibiu instances are) and claims full ZDT/DTLZ/WFG benchmarking.
+\end{abstract}
+
+\begin{IEEEkeywords}
+quantum-inspired evolutionary algorithm, many-objective optimization,
+capacitated vehicle routing, performance engineering, parallel evaluation
+\end{IEEEkeywords}
+
+% Needed only in peer-review mode; a no-op in conference mode (bare_conf.tex).
+\IEEEpeerreviewmaketitle
+
+% Page budget (8 pages total) in comments at the top of each section file.
+\input{sections/introduction}
+\input{sections/problem}
+\input{sections/algorithm}
+\input{sections/parallel}
+\input{sections/experiments}
+\input{sections/conclusion}
+
+% Double-blind: leave acknowledgements out until the camera-ready version.
+% \section*{Acknowledgment}
+% The authors would like to thank ...
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}

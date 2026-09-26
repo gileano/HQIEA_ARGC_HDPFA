@@ -1,0 +1,90 @@
+% Budget: ~1.25 pages (intro + related work). DRAFT: the contribution list and the
+% last paragraph must be revisited once the performance results exist
+% (submission2.txt section 8). Double-blind: the authors' earlier work
+% (gilea2026scalable, banciu2025iot) is cited in the third person only.
+\section{Introduction}
+\label{sec:introduction}
+
+Municipal waste collection is one of the largest recurring logistics costs of a
+city, and its routes involve several goals at once: short distances and travel
+times, low operating cost, low emissions, and a fair split of work between
+crews~\cite{belien2014waste,chen2025smartcities}. Formulated as a capacitated
+vehicle routing problem (CVRP) with these goals as separate objectives, it becomes
+a \emph{many-objective} problem, for which decomposition- and
+reference-vector-based evolutionary algorithms such as MOEA/D~\cite{zhang2007moead}
+and RVEA~\cite{cheng2016rvea} are the established tools.
+
+Quantum approaches to multi-objective optimization have so far been
+demonstrated on small synthetic binary problems with 3--4
+objectives~\cite{kotil2025qamoo,king2025moqa}. Quantum-inspired evolutionary
+algorithms (QIEAs)~\cite{han2002qea} borrow the qubit representation but run on
+classical hardware, so they can address larger problems today. For the waste-collection routes of Sibiu, Romania~\cite{banciu2025iot}, Gîlea et
+al.~\cite{gilea2026scalable} applied a single-objective QIEA to the TSP and found
+that it beat a genetic algorithm only on small instances, lost clearly on the
+real routes (198--333 collection points), and ran about $3.9\times$ slower. The
+authors attributed the loss of diversity at scale to the repair step that
+turns measured qubits into valid tours.
+
+To our knowledge, no quantum-inspired method has been evaluated on a real
+routing problem with more than three objectives. This paper does so, and asks two
+questions that matter for deploying such a method: how good are its solutions
+compared with established many-objective algorithms, and where does its runtime
+go on a single multicore machine.
+
+We study HQIEA-ARGC, a \emph{Hybrid Quantum-Inspired Evolutionary Algorithm with
+Adaptive Rotation-Gate Control}. It is hybrid in that it combines a qubit-angle
+encoding with MOEA/D-style decomposition. Its namesake mechanism, ARGC, boosts the
+rotation step when population diversity stalls. As we show, ARGC turned out to be
+almost inert in practice; the mechanism that actually prevents stagnation is a
+plateau-gated restart we added after diagnosing the problem. Our contributions are:
+\begin{itemize}
+\item A 5-objective waste-collection CVRP model (distance, time, cost,
+  load-dependent emissions, workload balance) on real Sibiu road data and
+  CVRPLIB instances, with a qubit-angle encoding whose decoding is repair-free
+  from qubits to feasible routes.
+\item A diagnosis of a hypervolume plateau in HQIEA-ARGC, caused by the ARGC
+  stagnation escape almost never firing, and a plateau-gated restart that increases hypervolume by 28--66\%,
+  significantly on all seven instances.
+\item A comparison with NSGA-II, SPEA2, MOEA/D and RVEA over 30 runs of 500
+  generations, which shows that even after this correction HQIEA-ARGC ranks last on
+  all seven instances and trails MOEA/D and RVEA by a factor of 1.5--3.3.
+\item A runtime profile and Amdahl analysis showing that parallel fitness
+  evaluation alone can yield at most 1.4--3.7$\times$, and a parallel design
+  informed by it for a hybrid-core CPU.
+  % TODO: replace with measured serial + parallel results.
+\end{itemize}
+
+\Cref{sec:problem} defines the model, \cref{sec:algorithm} the algorithm, and
+\cref{sec:parallel} the runtime profile and parallel design.
+\Cref{sec:experiments} reports the experiments and \cref{sec:conclusion}
+concludes.
+
+\subsection{Related work}
+\emph{Many-objective evolutionary algorithms.} NSGA-II~\cite{deb2002nsga2} and
+SPEA2~\cite{zitzler2001spea2} rank solutions by Pareto dominance, which loses
+selection pressure as the number of objectives grows. MOEA/D~\cite{zhang2007moead}
+decomposes the problem into scalar subproblems defined by weight vectors, and
+RVEA~\cite{cheng2016rvea} guides selection with adaptive reference vectors; both
+are standard choices for four or more objectives. For routing, permutation
+encodings decoded by a split procedure~\cite{prins2004simple} let all of these
+algorithms operate on the same search space.
+
+\emph{Quantum and quantum-inspired optimization.} Han and Kim's
+QIEA~\cite{han2002qea} represents each gene by a qubit and moves the population
+toward good solutions with rotation gates. Later variants target combinatorial
+problems such as the TSP~\cite{ma2024qeatsp} and cost-aware workflow scheduling in
+hybrid clouds~\cite{hussain2024costaware}. On actual quantum hardware, multi-objective
+work has so far used small binary problems~\cite{kotil2025qamoo,king2025moqa}, and
+benchmark libraries are only beginning to cover routing~\cite{koch2026qoblib}.
+Scalability of the \emph{evaluation}, not only of the search, is a recurring
+concern: Ghlib et al.~\cite{ghlib2026scalable} made multi-objective quantum-circuit
+synthesis tractable by replacing full-unitary fidelity evaluation with cheaper
+block-wise estimates.
+
+\emph{Waste-collection routing.} Beliën et al.~\cite{belien2014waste} survey
+operations-research models for waste collection, and Chen et
+al.~\cite{chen2025smartcities} identify routing in the waste and transport sectors
+as a core multi-objective problem for smart cities. The Sibiu route data used here
+was collected by Banciu et al.~\cite{banciu2025iot}.
+% TODO: add 1-2 references on parallel metaheuristics / parallel fitness evaluation
+% (needed for the PDP audience) once the performance section is written.

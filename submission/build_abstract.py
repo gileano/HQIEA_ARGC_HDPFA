@@ -10,7 +10,7 @@ Content is grounded in logs.txt sections 14-15 (the full-scale 30-run/
 n-gen=500 campaign and the plateau-diagnosis/restart-fix results) and
 results/*_indicators.csv (the actual campaign data -- see generate_figure.py).
 References are the five reference PDFs in the parent Paper1/ directory plus
-the companion single-objective QIEA paper (same author group). Author list/
+the companion multi-objective QIEA paper (same author group). Author list/
 affiliation confirmed correct by the author (carried over from the companion
 Paper 1 submission).
 
@@ -42,7 +42,7 @@ BACKGROUND = (
     "recently been applied to multi-objective optimization (Kotil et al., "
     "2025; King, 2025). However, these studies remain confined to synthetic "
     "benchmarks or low-dimensional (2-3 objective) problems, and a prior "
-    "single-objective QIEA applied to real waste-collection routing found "
+    "multi-objective QIEA applied to real waste-collection routing found "
     "that its repair step for infeasible tours collapses population "
     "diversity as instance size grows (Gîlea et al., 2026). This work "
     "extends qubit-encoded optimization to a genuinely many-objective "

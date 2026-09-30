@@ -48,7 +48,7 @@
   label={\color{qblue}\rule[0.25ex]{0.55em}{0.55em}}}
 
 \newlength{\colw}\setlength{\colw}{\dimexpr(\textwidth-34mm)/2\relax}
-\newlength{\bodyh}\setlength{\bodyh}{835mm}
+\newlength{\bodyh}\setlength{\bodyh}{850mm}
 
 \tikzset{
   every node/.style={font=\smallfont},
@@ -66,9 +66,9 @@
 % Title block
 % ==================================================================================
 \begin{center}
-  {\fontsize{72}{86}\selectfont\bfseries
-   A Hybrid Quantum-Inspired Evolutionary Algorithm with Adaptive Rotation-Gate Control
-   for Many-Objective Vehicle Routing\par}
+  {\fontsize{64}{77}\selectfont\bfseries
+   A Hybrid Quantum-Inspired Evolutionary Algorithm with Adaptive\\
+   Rotation-Gate Control for Many-Objective Vehicle Routing\par}
   \vspace{12mm}
   {\fontsize{50}{60}\selectfont Diagnosis, Correction, and Comparative Evaluation\par}
   \vspace{14mm}
@@ -92,7 +92,7 @@
   \item Quantum-inspired evolutionary algorithms (QIEAs) encode each gene as a qubit angle
         and search with rotation gates. Recent quantum and quantum-inspired multi-objective
         work stays on synthetic or 2--3-objective problems [1,\,2].
-  \item Our earlier single-objective QIEA on Sibiu waste routing lost population diversity
+  \item Our earlier multi-objective QIEA on Sibiu waste routing lost population diversity
         as instances grew, caused by its repair step for infeasible tours [3].
   \item \textbf{Question:} can a decomposition-guided QIEA match established
         many-objective evolutionary algorithms on a real \textbf{5-objective} routing problem?
@@ -253,10 +253,10 @@ $p<10^{-14}$ on every instance.}
 \noindent
 \begin{minipage}[t]{0.72\textwidth}
 \tinyfont
-[1] A.~Kotil et al., Quantum approximate multi-objective optimization, arXiv:2503.22797 (2025).
-[2] A.~D.~King, Multi-objective optimization by quantum annealing, arXiv:2511.01762 (2025).
+[1] A.~Kotil et al., Quantum approximate multi-objective optimization, arXiv:2503.22797 (2025).\par
+[2] A.~D.~King, Multi-objective optimization by quantum annealing, arXiv:2511.01762 (2025).\par
 [3] O.-A.~G\^{\i}lea, A.~Florea, C.~Banciu, A.~Telcean, Scalable quantum-inspired evolutionary
-algorithm for multi-objective optimization: real-world problems, manuscript in preparation (2026).
+algorithm for multi-objective optimization: real-world problems, manuscript in preparation (2026).\par
 [4] J.~Blank, K.~Deb, pymoo: Multi-objective optimization in Python, IEEE Access 8,
 89497--89509 (2020).
 \end{minipage}%

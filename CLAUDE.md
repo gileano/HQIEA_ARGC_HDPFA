@@ -9,7 +9,7 @@ Rotation-Gate Control (HQIEA-ARGC) for many-objective optimization, applied to a
 Capacitated Vehicle Routing Problem (urban waste collection, Sibiu, Romania), plus synthetic
 ZDT/DTLZ/WFG benchmarks. It is compared against NSGA-II, SPEA2, MOEA/D, and RVEA (all via pymoo).
 
-This extends a prior single-objective QIEA/TSP paper — the key design decisions in this repo
+This extends a prior multi-objective QIEA/TSP paper — the key design decisions in this repo
 (no-repair permutation decode, MOEA/D decomposition, diversity-triggered rotation boost) exist
 specifically to fix scalability/diversity problems identified in that earlier work. When
 touching `qiea.py` or `problem.py`, the module docstrings explain *why* each mechanism exists —

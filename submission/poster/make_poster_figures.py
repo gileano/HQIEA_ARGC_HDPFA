@@ -91,7 +91,7 @@ def load_trace(instance):
 
 
 def trace_figure():
-    fig, axes = plt.subplots(1, 3, figsize=(COL_WIDTH_IN, 5.1), sharey=True)
+    fig, axes = plt.subplots(1, 3, figsize=(COL_WIDTH_IN, 5.9), sharey=True)
     for ax, inst in zip(axes, TRACE_INSTANCES):
         df, n_seeds = load_trace(inst)
         for col, label, color, ls, marker in SERIES:
@@ -125,7 +125,7 @@ def restart_ratio_figure():
     after = ratio_after()
     x = np.arange(len(INSTANCES))
     w = 0.38
-    fig, ax = plt.subplots(figsize=(COL_WIDTH_IN, 4.7))
+    fig, ax = plt.subplots(figsize=(COL_WIDTH_IN, 5.5))
     before_vals = [RATIO_BEFORE[i] for i in INSTANCES]
     after_vals = [after[i] for i in INSTANCES]
     ax.bar(x - w / 2, before_vals, w, color=BLUE_LIGHT, edgecolor="white", linewidth=3,

@@ -4,7 +4,7 @@ A Hybrid Quantum-Inspired Evolutionary Algorithm with Adaptive Rotation-Gate Con
 High-Dimensional Pareto-Front Approximation, applied to a real-world many-objective
 Capacitated Vehicle Routing Problem (CVRP): urban waste collection in Sibiu, Romania.
 
-This is the code for a second paper extending a prior single-objective QIEA/TSP study
+This is the code for a second paper extending a prior multi-objective QIEA/TSP study
 (qubit-chromosome + rotation-gate operator) to a many-objective setting: 5 conflicting
 objectives (distance, time, cost, emissions, workload balance), validated on standard
 synthetic suites (ZDT/DTLZ/WFG), CVRPLIB instances, and real Sibiu routing data, against
@@ -17,7 +17,7 @@ state). Two decode modes share this representation:
 
 - **Permutation** (CVRP): `tour = argsort(theta)`. Sorting real numbers can never produce
   a duplicate, so there is **no repair step** — this directly fixes the diversity collapse
-  reported for the qubit chromosome in the first (single-objective) paper at high city counts.
+  reported for the qubit chromosome in the first (multi-objective) paper at high city counts.
 - **Continuous** (ZDT/DTLZ/WFG): `x_i = xl_i + sin(theta_i)^2 * (xu_i - xl_i)`.
 
 Scalability to many objectives comes from an MOEA/D-style decomposition (Das-Dennis weight

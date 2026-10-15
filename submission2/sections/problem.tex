@@ -24,7 +24,7 @@ decoding~\cite{prins2004simple}. Route $k$ is then the node sequence
 $r_k=(0,v_{k,1},\dots,v_{k,m_k},0)$. Because the split never lets a route's
 load exceed $Q$, every permutation decodes to a feasible solution: no repair
 operator and no penalty term are needed anywhere in the pipeline. This matters
-for the qubit encoding (\cref{sec:algorithm}), where an earlier single-objective
+for the qubit encoding (\cref{sec:algorithm}), where an earlier multi-objective
 QIEA on the same Sibiu routes lost population diversity on large instances
 because of its repair step~\cite{gilea2026scalable}.
 
@@ -46,7 +46,8 @@ f_2 &= \sum_{k=1}^{K} T_k,\quad T_k=\sum_{(i,j)\in A(r_k)} t_{ij}
 f_3 &= c_F\,K+\sum_{k=1}^{K}\sum_{(i,j)\in A(r_k)} c_{ij}
   && \text{(cost)}\\
 f_4 &= \sum_{k=1}^{K}\sum_{(i,j)\in A(r_k)}
-  \bigl(e_d\,d_{ij}+e_t\,t_{ij}+e_q\,d_{ij}\,L_{k,j}\bigr)
+  \bigl(e_d\,d_{ij}+e_t\,t_{ij}\nonumber\\
+  &\qquad+e_q\,d_{ij}\,L_{k,j}\bigr)
   && \text{(CO$_2$, kg)}\\
 f_5 &= \sqrt{\tfrac{1}{K}\textstyle\sum_{k=1}^{K}\bigl(T_k-\bar T\bigr)^2}
   && \text{(workload balance)}

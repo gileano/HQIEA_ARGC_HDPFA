@@ -145,6 +145,26 @@ Available `<instance_name>` values: `route1_334`, `route2_199`, `route3_202`, `A
 Writes `results/<instance_name>_indicators.csv` (hypervolume/spacing/spread per run) and
 `results/<instance_name>_fronts.npz` (raw objective-space fronts).
 
+## Building the paper (LaTeX)
+
+The PDP 2027 paper draft lives in `submission2/` (`main.tex` + `sections/*.tex`,
+`refs.bib`; `IEEEtran.cls`/`IEEEtran.bst` are vendored there). No local TeX install is
+needed — it builds inside the `texlive/texlive` Docker image:
+
+```bash
+# (once) regenerate figures from results/ -- needs the Python venv
+python submission2/make_figures.py
+
+# build submission2/main.pdf (latexmk runs pdflatex + bibtex as many times as needed)
+cd submission2
+docker run --rm --network none -u $(id -u):$(id -g) -v "$PWD":/work -w /work \
+  texlive/texlive:latest latexmk -pdf -interaction=nonstopmode main.tex
+```
+
+Clean build artifacts with the same command, replacing `latexmk -pdf ... main.tex` by
+`latexmk -C`. `main.pdf` and the LaTeX auxiliary files are git-ignored
+(`submission2/.gitignore`).
+
 ## Status
 
 **Plateau fixed (2026-08-17)** — QIEA hit a hard hypervolume plateau early in every

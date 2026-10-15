@@ -34,9 +34,31 @@ Scalability Analysis}
 \maketitle
 
 \begin{abstract}
-% TODO: write LAST, after the performance results (submission2.txt section 8).
-% Do not reuse the EQTC abstract as-is: it calls all seven instances real-world
-% (only the three Sibiu instances are) and claims full ZDT/DTLZ/WFG benchmarking.
+% DRAFT (2026-10-15), ~220 words. Every number is from logs.txt sections 14-17 /
+% Tables I-IV. The last sentence stands in for the performance results: replace it
+% once the serial optimization and scaling runs exist (submission2.txt section 8),
+% e.g. "Vectorizing ... and compiling ... reduce runtime by X-Y x; running
+% independent runs in parallel on the hybrid cores scales to Z x on N cores."
+Quantum-inspired evolutionary algorithms (QIEAs) run on classical hardware, but
+they have rarely been tested on real routing problems with more than three
+objectives, and little is known about where their runtime goes. We study
+HQIEA-ARGC, which combines a qubit-angle chromosome with MOEA/D-style
+decomposition and an adaptive rotation-gate control (ARGC) meant to escape
+stagnation, on a 5-objective capacitated vehicle routing model of municipal waste
+collection: distance, time, cost, load-dependent emissions, and workload balance.
+Decoding the qubits by sorting their angles and splitting the tour by capacity
+turns every chromosome into a feasible solution without repair. We evaluate on
+three real road networks of Sibiu, Romania (198--333 collection points) and four
+CVRPLIB instances, against NSGA-II, SPEA2, MOEA/D and RVEA over 30 runs of 500
+generations. A generation-wise trace shows that the ARGC trigger almost never
+fires, so hypervolume stops improving early. Adding a restart gated on archive
+growth raises hypervolume by 28--66\%, significantly on all seven instances. Even
+so, HQIEA-ARGC ranks last on every instance, at 30--58\% of the best
+hypervolume, with MOEA/D and RVEA the hardest to match. A runtime profile on a
+hybrid-core laptop CPU shows that fitness evaluation takes only 29--73\% of the
+runtime, which caps the speedup from parallel evaluation alone at
+1.4--3.7$\times$; most of the remaining time is function-call overhead. Removing
+this serial overhead should therefore come before parallelizing the evaluation.
 \end{abstract}
 
 \begin{IEEEkeywords}

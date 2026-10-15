@@ -291,3 +291,45 @@ Suggested revised story for the performance part (pending decision):
 Revised order of work: vectorize Tchebycheff + Numba evaluator first (with a
 bit-for-bit correctness check), then measure intra-run parallel options
 (multiprocessing vs Numba threads) on the faster code, then run-level scaling.
+
+--------------------------------------------------------------------------------
+9. DRAFT STATUS AND OPEN TODOS (2026-10-15)
+--------------------------------------------------------------------------------
+State of submission2/ (commit 720c49e): every section is drafted except the
+runtime/parallel results. Builds to 6 pages with the texlive/texlive Docker
+image (command in README.md), leaving ~2 pages for the performance section.
+Done since section 8: draft abstract written (main.tex); prior paper described
+as multi-objective in introduction.tex/problem.tex; f4 equation wrapped (no
+overfull boxes left).
+
+Blocked on the performance results (vectorized Tchebycheff + Numba evaluator,
+scaling, time-to-quality):
+  1. sections/experiments.tex:137 -- "Runtime and parallel performance"
+     subsection is empty. The main gap (~1.25 pages).
+  2. sections/parallel.tex:70 -- steps 1-3 of the parallel design are described
+     but not measured; their results go in the experiments section.
+  3. sections/introduction.tex:54 -- contribution 4 lists only the profile and
+     the Amdahl bound, not measured speedups.
+  4. sections/conclusion.tex:35 -- performance conclusions missing.
+  5. main.tex:37 -- the abstract's last sentence is a stand-in for the
+     performance result.
+  6. main.tex:23 (title) -- "Parallel ... Scalability Analysis" is only
+     justified if measured speedups make it in; otherwise retitle.
+
+Can be done now:
+  7. sections/introduction.tex:89 -- add 1-2 references on parallel
+     metaheuristics / parallel fitness evaluation (expected by PDP reviewers).
+  8. sections/parallel.tex:3 -- confirm the "profiling-guided performance
+     engineering" framing with co-authors.
+
+Open, not marked TODO in the source:
+  - Introduction claims no quantum-inspired method has been evaluated on a real
+    routing problem with more than three objectives. True only if the PDP 2026
+    paper (gilea2026scalable) used three objectives or fewer -- check.
+  - The DRAFT headers in introduction.tex and conclusion.tex call for another
+    pass once the results exist.
+  - Section 7's "restart cost" experiment is already done (logs.txt section
+    17f: 0-5%); no new run needed.
+
+Deadlines from today: main-track abstract 19 Oct (the current abstract can be
+registered as is), main-track paper 26 Oct, HPCMS session paper 31 Oct.
